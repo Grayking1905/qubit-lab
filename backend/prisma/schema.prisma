@@ -1,0 +1,182 @@
+generator client {
+  provider  = "prisma-client-py"
+  interface = "asyncio"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  name           String
+  role           Role      @default(STUDENT)
+  xp             Int       @default(0)
+  level          Int       @default(1)
+  streak         Int       @default(0)
+  lastActiveDate DateTime?
+  createdAt      DateTime  @default(now())
+
+  submissions      Submission[]
+  userBadges       UserBadge[]
+  gates            Gate[]
+  questionAttempts QuestionAttempt[]
+
+  @@map("users")
+}
+
+model Problem {
+  id              String     @id @default(uuid())
+  title           String
+  description     String
+  difficulty      Difficulty
+  topic           String
+  solutionCircuit Json
+  isDaily         Boolean    @default(false)
+  scheduledDate   DateTime?  @unique
+  hints           Json
+  createdAt       DateTime   @default(now())
+
+  submissions    Submission[]
+  courseProblems CourseProblem[]
+  questions      Question[]
+
+  @@index([difficulty])
+  @@index([topic])
+  @@map("problems")
+}
+
+model Course {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  difficulty  Difficulty
+  order       Int
+  createdAt   DateTime   @default(now())
+
+  courseProblems CourseProblem[]
+
+  @@map("courses")
+}
+
+model CourseProblem {
+  id         String @id @default(uuid())
+  courseId   String
+  problemId  String
+  orderIndex Int
+
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, problemId])
+  @@index([courseId, orderIndex])
+  @@map("course_problems")
+}
+
+model Submission {
+  id          String   @id @default(uuid())
+  userId      String
+  problemId   String
+  circuitJson Json
+  isCorrect   Boolean
+  xpEarned    Int
+  timestamp   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, problemId])
+  @@map("submissions")
+}
+
+model Gate {
+  id               String   @id @default(uuid())
+  name             String
+  symbol           String
+  matrixDefinition Json
+  description      String
+  createdBy        String
+  createdAt        DateTime @default(now())
+
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("gates")
+}
+
+model Badge {
+  id          String @id @default(uuid())
+  name        String
+  description String
+  icon        String
+  condition   Json
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id         String   @id @default(uuid())
+  userId     String
+  badgeId    String
+  unlockedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model Question {
+  id                 String   @id @default(uuid())
+  problemId          String?
+  circuitContext     Json?
+  questionText       String
+  options            Json
+  correctOptionIndex Int
+  explanation        String
+  aiGenerated        Boolean  @default(false)
+  approved           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  problem  Problem?          @relation(fields: [problemId], references: [id], onDelete: SetNull)
+  attempts QuestionAttempt[]
+
+  @@map("questions")
+}
+
+// Records a student's answer to a Question (MCQ). Not part of the original
+// spec's model list, but required to compute the admin analytics field
+// "quiz questions with the highest incorrect-answer rate" — without
+// recording attempts there is no data to derive that ranking from.
+model QuestionAttempt {
+  id                 String   @id @default(uuid())
+  userId             String
+  questionId         String
+  selectedOptionIndex Int
+  isCorrect          Boolean
+  createdAt          DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_attempts")
+}
