@@ -13,6 +13,14 @@ import CodeSandbox from '@/components/CodeSandbox'
 import LessonQuiz from '@/components/LessonQuiz'
 import { ErrorBox } from '@/components/shared'
 
+function YtIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+    </svg>
+  )
+}
+
 const STEPS = 6
 const GATES: { type: GateType; label: string }[] = [
   { type: 'H', label: 'Hadamard' },
@@ -247,15 +255,37 @@ export default function InteractiveLearn({ onComplete }: { onComplete?: () => vo
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.35 }}
             >
-              <span className="tag orange">{
-                step.type === 'read' ? 'READ'
-                  : step.type === 'experiment' ? 'EXPERIMENT'
-                    : step.type === 'sandbox' ? 'SANDBOX'
-                      : step.type === 'quiz' ? 'QUIZ'
+              <span className="tag orange">{step.type === 'read' ? 'READ'
+                : step.type === 'experiment' ? 'EXPERIMENT'
+                  : step.type === 'sandbox' ? 'SANDBOX'
+                    : step.type === 'quiz' ? 'QUIZ'
+                      : step.type === 'video' ? 'VIDEO'
                         : 'EXPLORE'
               }</span>
               <h2>{step.title}</h2>
-              <p className="educate-body">{step.body}</p>
+              {'body' in step && step.body && (
+                <p className="educate-body" style={{ whiteSpace: 'pre-line' }}>{step.body}</p>
+              )}
+              {'terminology' in step && Array.isArray(step.terminology) && (
+                <div className="educate-glossary">
+                  <p className="muted-label" style={{ marginBottom: 10 }}>KEY TERMINOLOGY</p>
+                  <div className="educate-glossary-grid">
+                    {(step.terminology as { term: string; def: string }[]).map(t => (
+                      <motion.div
+                        key={t.term}
+                        className="glossary-card"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        whileHover={{ scale: 1.02 }}
+                      >
+                        <strong>{t.term}</strong>
+                        <span>{t.def}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {'code' in step && step.code && (
                 <pre className="educate-code"><code>{step.code}</code></pre>
               )}
@@ -265,6 +295,22 @@ export default function InteractiveLearn({ onComplete }: { onComplete?: () => vo
                     <li key={s.url}><a href={s.url} target="_blank" rel="noreferrer">{s.label}</a></li>
                   ))}
                 </ul>
+              )}
+              {step.type === 'video' && 'videoId' in step && (
+                <div className="educate-video">
+                  <div className="educate-video-header">
+                    <YtIcon size={16} />
+                    <span>Watch</span>
+                  </div>
+                  <div className="educate-video-frame">
+                    <iframe
+                      src={`https://www.youtube-nocookie.com/embed/${step.videoId}?rel=0&modestbranding=1&color=white`}
+                      title={step.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
               )}
               {step.type === 'visual' && 'visual' in step && (
                 <HardwareViz mode={step.visual} />
