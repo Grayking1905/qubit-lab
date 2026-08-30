@@ -197,3 +197,11 @@
 @media(max-width:900px){
 .hw-fridge,.hw-compare,.sandbox-grid,.hw-chip-wrap{grid-template-columns:1fr}
 }
+
+/* === Entanglement Visualizer === */
+.educate-entangle-viz{margin-top:18px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+
+/* Responsive: collapse side panel on small screens */
+@media(max-width:820px){
+.hw-fridge,.hw-compare,.sandbox-grid,.hw-chip-wrap{grid-template-columns:1fr}
+}
