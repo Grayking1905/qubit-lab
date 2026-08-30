@@ -12,6 +12,7 @@ import HardwareViz from '@/components/HardwareViz'
 import CodeSandbox from '@/components/CodeSandbox'
 import LessonQuiz from '@/components/LessonQuiz'
 import { ErrorBox } from '@/components/shared'
+import EntanglementViz from '@/components/EntanglementVizClient'
 
 function YtIcon({ size = 16 }: { size?: number }) {
   return (
@@ -317,6 +318,11 @@ export default function InteractiveLearn({ onComplete }: { onComplete?: () => vo
               )}
               {step.type === 'sandbox' && 'dialect' in step && (
                 <CodeSandbox dialect={step.dialect} />
+              )}
+              {step.type === 'entanglement-viz' && (
+                <div className="educate-entangle-viz">
+                  <EntanglementViz />
+                </div>
               )}
               {step.type === 'quiz' && 'question' in step && (
                 <LessonQuiz

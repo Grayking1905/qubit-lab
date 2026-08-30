@@ -221,21 +221,216 @@ export const LESSONS = [
     topic: 'Entanglement',
     level: 'INTERMEDIATE',
     steps: [
+      // ── STEP 1: Theory — What is Entanglement ──
       {
         type: 'read' as const,
-        title: 'Spooky correlations',
-        body: 'Entangled qubits share a quantum state. Measuring one instantly affects the other — the famous Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2.',
+        title: 'What Is Quantum Entanglement?',
+        body: 'Quantum entanglement is one of the most counterintuitive and experimentally verified phenomena in all of science. Two qubits are said to be entangled when their quantum states cannot be described independently of each other — no matter how far apart they are.\n\nClassically, two coins tossed separately are independent: knowing the result of coin A tells you nothing about coin B. But with entangled qubits, measuring qubit A instantly determines the state of qubit B — even if B is on the other side of the galaxy.\n\nEinstein famously called this "spooky action at a distance" and spent years trying to prove it was an illusion caused by hidden variables. John Bell designed a test in 1964 — Bell\'s inequality — that experiments have now conclusively violated, confirming entanglement is real, not a computational artifact.\n\nMathematically, a two-qubit state |ψ⟩ is entangled if it cannot be written as a tensor product:\n  |ψ⟩ ≠ |a⟩ ⊗ |b⟩\nfor any single-qubit states |a⟩ and |b⟩.\n\nThe simplest entangled state — the Bell state Φ⁺ — looks like:\n  |Φ⁺⟩ = (|00⟩ + |11⟩) / √2\nMeasuring qubit 0 as |0⟩ instantly collapses qubit 1 to |0⟩. Measuring as |1⟩ collapses qubit 1 to |1⟩. Always.',
+        terminology: [
+          { term: 'Entanglement', def: 'A quantum correlation between two or more qubits such that their states cannot be described independently.' },
+          { term: 'Tensor product ⊗', def: 'Mathematical operation combining two quantum systems. Entangled states cannot be factored into a tensor product.' },
+          { term: 'Separable state', def: 'A multi-qubit state that CAN be written as |a⟩⊗|b⟩ — not entangled, classically correlated at most.' },
+          { term: 'Non-locality', def: 'The property that entangled qubits exhibit correlations that cannot be explained by local hidden variables.' },
+          { term: 'EPR pair', def: 'A pair of maximally entangled qubits, named after Einstein-Podolsky-Rosen. Same as a Bell pair.' },
+          { term: 'Bell pair', def: 'Any of the four maximally entangled two-qubit states (the Bell basis). Foundation of quantum communication.' },
+        ],
       },
+      // ── STEP 2: Video — Veritasium Entanglement ──
+      {
+        type: 'video' as const,
+        title: 'Veritasium: Quantum Entanglement & Spooky Action at a Distance',
+        body: 'Derek Muller\'s landmark explanation of quantum entanglement — covering the EPR paradox, Bell\'s theorem, and the experimental proof that "spooky action" is real. One of the best science communication videos ever made.',
+        videoId: 'ZuvK-od647c',
+      },
+      // ── STEP 3: Theory — The 4 Bell States ──
+      {
+        type: 'read' as const,
+        title: 'The Four Bell States — The Complete Basis',
+        body: 'There are exactly four maximally entangled two-qubit states. Together they form the Bell basis — an orthonormal basis for the four-dimensional Hilbert space of two qubits. Every two-qubit state can be expressed as a superposition of Bell states.\n\n┌─────────────────────────────────────────────────────────────────────┐\n│  |Φ⁺⟩ = (|00⟩ + |11⟩) / √2   ← Correlated, no phase flip        │\n│  |Φ⁻⟩ = (|00⟩ − |11⟩) / √2   ← Correlated, relative phase π     │\n│  |Ψ⁺⟩ = (|01⟩ + |10⟩) / √2   ← Anti-correlated, no phase flip   │\n│  |Ψ⁻⟩ = (|01⟩ − |10⟩) / √2   ← Anti-correlated, phase π        │\n└─────────────────────────────────────────────────────────────────────┘\n\nCircuit recipes to create each Bell state from |00⟩:\n  Φ⁺:  H(q0) → CNOT(q0→q1)\n  Φ⁻:  H(q0) → CNOT(q0→q1) → Z(q0)\n  Ψ⁺:  H(q0) → CNOT(q0→q1) → X(q1)\n  Ψ⁻:  H(q0) → CNOT(q0→q1) → X(q1) → Z(q0)\n\nKey property: each Bell state is maximally entangled — reduced density matrix of either qubit alone is ρ = I/2 (maximally mixed). You cannot distinguish them by measuring only one qubit. You must measure in the Bell basis (using a reverse H → CNOT circuit) to tell them apart.',
+        terminology: [
+          { term: '|Φ⁺⟩ (Phi-plus)', def: '(|00⟩+|11⟩)/√2. Canonical Bell state. Both qubits always agree when measured in the same basis.' },
+          { term: '|Φ⁻⟩ (Phi-minus)', def: '(|00⟩−|11⟩)/√2. Correlated but with a relative phase of π between |00⟩ and |11⟩.' },
+          { term: '|Ψ⁺⟩ (Psi-plus)', def: '(|01⟩+|10⟩)/√2. Anti-correlated — measuring one as |0⟩ forces the other to |1⟩.' },
+          { term: '|Ψ⁻⟩ (Psi-minus)', def: '(|01⟩−|10⟩)/√2. The singlet state. Unique: anti-symmetric under particle exchange. Used in quantum cryptography (E91).' },
+          { term: 'Bell basis', def: 'The set {|Φ⁺⟩, |Φ⁻⟩, |Ψ⁺⟩, |Ψ⁻⟩} forms a complete orthonormal basis for 2-qubit Hilbert space.' },
+          { term: 'Reduced density matrix', def: 'The state of one qubit when you ignore the other. For Bell states: ρ = I/2 (maximally mixed — completely unknown).' },
+          { term: 'Bell measurement', def: 'Projecting onto the Bell basis. Implemented as reverse CNOT → H → measure. Used in teleportation.' },
+        ],
+      },
+      // ── STEP 4: Quiz 1 ──
+      {
+        type: 'quiz' as const,
+        title: 'Quiz 1: Bell State Identification',
+        body: 'Test your knowledge of the four Bell states.',
+        question: 'Which Bell state is produced by the circuit: H(q0) → CNOT(q0, q1)?',
+        options: [
+          '|Φ⁻⟩ = (|00⟩ − |11⟩)/√2',
+          '|Φ⁺⟩ = (|00⟩ + |11⟩)/√2',
+          '|Ψ⁺⟩ = (|01⟩ + |10⟩)/√2',
+          '|Ψ⁻⟩ = (|01⟩ − |10⟩)/√2',
+        ],
+        correct: 1,
+        explanation: 'Starting from |00⟩: H on q0 creates (|0⟩+|1⟩)/√2 ⊗ |0⟩ = (|00⟩+|10⟩)/√2. Then CNOT flips q1 when q0=|1⟩: (|00⟩+|11⟩)/√2 = |Φ⁺⟩. This is the canonical Bell state — the first and most commonly used.',
+      },
+      // ── STEP 5: Experiment — Build Bell state ──
       {
         type: 'experiment' as const,
-        title: 'Create a Bell state',
-        body: 'Apply H on q0, then CNOT with q0 as control and q1 as target.',
+        title: 'Build the Φ⁺ Bell State',
+        body: 'Create the canonical Bell state |Φ⁺⟩ = (|00⟩ + |11⟩)/√2.\n\nStep-by-step:\n  1. Drag H onto q0 at step 0 — this puts q0 into superposition (|0⟩+|1⟩)/√2\n  2. Drag CNOT onto q0-q1 at step 1 — control is q0, target is q1\n\nAfter running, you should see 50% probability for |00⟩ and 50% for |11⟩. Note: |01⟩ and |10⟩ have 0% probability — this is the signature of entanglement.',
         circuit: { qubits: 2, gates: [] },
-        task: 'Build H → CNOT Bell circuit',
+        task: 'Build H(q0) → CNOT(q0→q1) to create the Bell state Φ⁺',
         expectedGates: [
           { type: 'H', qubit: 0, step: 0 },
           { type: 'CNOT', qubit: 0, target: 1, step: 1 },
         ],
+      },
+      // ── STEP 6: 3D Entanglement Visualization ──
+      {
+        type: 'entanglement-viz' as const,
+        title: 'Interactive Bell State Visualizer',
+        body: 'Explore all four Bell states interactively. The two Bloch spheres represent Alice\'s qubit (q₀, orange) and Bob\'s qubit (q₁, blue). The glowing beam shows their quantum correlation.\n\nSelect different Bell states to see how the correlation beam changes (orange = correlated, pink = anti-correlated). Click "Measure q₀" to simulate wavefunction collapse — watch both qubits snap to definite states simultaneously!',
+      },
+      // ── STEP 7: Theory — EPR & Bell's Theorem ──
+      {
+        type: 'read' as const,
+        title: "EPR Paradox & Bell's Inequality — Settling the Debate",
+        body: 'In 1935, Einstein, Podolsky, and Rosen published a paper arguing that quantum mechanics was incomplete. Their argument: if measuring qubit A instantly determines qubit B (no matter the distance), then either:\n  (a) Quantum mechanics is non-local — violating special relativity, OR\n  (b) The qubits had predetermined values all along ("hidden variables")\n\nEinstein preferred (b) — "God does not play dice."\n\nJohn Bell\'s 1964 insight: we can test this mathematically. He derived an inequality that any "local hidden variable" theory must satisfy:\n  |E(a,b) − E(a,c)| + E(b,c) ≤ 1   (Bell\'s inequality)\n  or in CHSH form:  |S| = |E(a,b) − E(a,b\') + E(a\',b) + E(a\',b\')| ≤ 2\n\nQuantum mechanics predicts |S| ≤ 2√2 ≈ 2.828, exceeding the classical bound of 2.\n\nExperiments by Aspect (1982), then Hensen et al. (2015) in a loophole-free test, all found |S| ≈ 2.7 — definitively ruling out local hidden variables.\n\nConclusion: Nature is genuinely non-local. But this non-locality cannot be used to send signals faster than light — measuring qubit A gives a random result, and you need a classical channel to compare notes with the person holding qubit B.',
+        terminology: [
+          { term: 'EPR paradox', def: 'Einstein-Podolsky-Rosen 1935 thought experiment arguing quantum mechanics must be incomplete.' },
+          { term: 'Local hidden variables', def: 'Hypothetical predetermined values carried by particles that would explain quantum correlations classically.' },
+          { term: "Bell's inequality", def: 'A mathematical constraint that any local realistic theory must satisfy. Violated by quantum mechanics.' },
+          { term: 'CHSH inequality', def: 'Clauser-Horne-Shimony-Holt form: |S| ≤ 2 classically, |S| ≤ 2√2 quantum mechanically.' },
+          { term: 'Bell test experiment', def: 'Experimental measurement of correlations between entangled particles to test local realism.' },
+          { term: 'Loophole-free Bell test', def: 'Bell test with all possible experimental loopholes (detection, locality) closed simultaneously. First performed in 2015.' },
+          { term: 'No-signaling theorem', def: 'Quantum non-locality cannot transmit information faster than light — outcomes are still random.' },
+        ],
+      },
+      // ── STEP 8: Video — PBS Space Time Bell's Theorem ──
+      {
+        type: 'video' as const,
+        title: "PBS Space Time: Bell's Theorem — The Quantum Venn Diagram Paradox",
+        body: 'A masterful visual explanation of how Bell\'s theorem works, why classical probability fails for entangled particles, and what the experimental violations actually mean for our understanding of reality.',
+        videoId: 'zcqZHYo7ONs',
+      },
+      // ── STEP 9: Quiz 2 ──
+      {
+        type: 'quiz' as const,
+        title: "Quiz 2: Bell's Inequality",
+        body: "Test your understanding of the EPR paradox and Bell's theorem.",
+        question: "The CHSH inequality violation (|S| > 2) in Bell test experiments proves that:",
+        options: [
+          'Quantum mechanics allows faster-than-light communication',
+          'Local hidden variable theories cannot explain quantum correlations',
+          'Entangled particles must have been in contact recently',
+          'The measurement apparatus is always biased',
+        ],
+        correct: 1,
+        explanation: "Bell tests show |S| ≈ 2.7, exceeding the classical limit of 2. This rules out any local realistic (hidden variable) explanation of quantum correlations. However, the no-signaling theorem guarantees this cannot be used for FTL communication — Bob's outcomes remain random until compared with Alice's via a classical channel.",
+      },
+      // ── STEP 10: Theory — Superdense Coding ──
+      {
+        type: 'read' as const,
+        title: 'Superdense Coding — 2 Classical Bits Through 1 Qubit',
+        body: 'Superdense coding (Bennett & Wiesner, 1992) is a quantum communication protocol that exploits entanglement to send 2 classical bits of information by transmitting only 1 qubit.\n\nPrerequisite: Alice and Bob share a Bell pair |Φ⁺⟩ in advance.\n\nProtocol:\n  Alice wants to send one of four 2-bit messages: 00, 01, 10, 11.\n  She applies a single-qubit gate to her qubit:\n    00 → do nothing   (state stays |Φ⁺⟩)\n    01 → X gate        (state becomes |Ψ⁺⟩)\n    10 → Z gate        (state becomes |Φ⁻⟩)\n    11 → iY gate       (state becomes |Ψ⁻⟩)\n  Alice sends her 1 qubit to Bob.\n  Bob performs a Bell measurement (CNOT → H → measure both qubits).\n  Bob reads 2 classical bits — perfectly recovering Alice\'s message.\n\nWhy it works: Alice\'s single-qubit gate changes which Bell state the pair is in. Bob\'s Bell measurement can distinguish all 4 Bell states, so he reads 2 bits of information.\n\nCapacity: 1 qubit + 1 pre-shared ebit (entangled bit) = 2 classical bits. This is the Holevo bound saturated — the maximum information transmissible per qubit.',
+        terminology: [
+          { term: 'Superdense coding', def: 'Protocol: send 2 classical bits by transmitting 1 qubit, using pre-shared entanglement.' },
+          { term: 'Ebit', def: 'One unit of entanglement — one shared Bell pair. Resource consumed in superdense coding and teleportation.' },
+          { term: 'Holevo bound', def: 'Maximum classical information extractable from a quantum system. Superdense coding saturates this bound with entanglement.' },
+          { term: 'Quantum channel capacity', def: 'Maximum rate of reliable information transmission through a quantum channel.' },
+        ],
+      },
+      // ── STEP 11: Quiz 3 ──
+      {
+        type: 'quiz' as const,
+        title: 'Quiz 3: Superdense Coding',
+        body: 'Test your understanding of the superdense coding protocol.',
+        question: 'In superdense coding, Alice wants to send the message "10". Which gate does she apply to her qubit?',
+        options: [
+          'Hadamard (H)',
+          'Pauli-X',
+          'Pauli-Z',
+          'No gate (identity)',
+        ],
+        correct: 2,
+        explanation: 'In superdense coding: 00→I (nothing), 01→X, 10→Z, 11→iY. Applying Z to her qubit in state |Φ⁺⟩ creates |Φ⁻⟩ = (|00⟩−|11⟩)/√2. Bob then performs a Bell measurement that identifies |Φ⁻⟩ and recovers the message "10".',
+      },
+      // ── STEP 12: Theory — Quantum Teleportation ──
+      {
+        type: 'read' as const,
+        title: 'Quantum Teleportation — Moving Quantum States',
+        body: 'Quantum teleportation (Bennett et al., 1993) is a protocol to transfer an unknown quantum state from one location to another, using entanglement and classical communication — without physically moving the qubit.\n\nImportant: it does NOT transfer matter, it does NOT violate no-cloning, and it does NOT allow FTL communication.\n\nSetup: Alice holds qubit A (unknown state |ψ⟩ = α|0⟩+β|1⟩) and qubit 1 (her half of a Bell pair). Bob holds qubit 2 (his half of the Bell pair).\n\nProtocol:\n  1. Alice applies CNOT(A → qubit1), then H(A).\n  2. Alice measures both A and qubit1 (in computational basis). She gets 2 classical bits: mm.\n  3. Alice sends mm to Bob over a classical channel.\n  4. Bob applies corrections based on mm:\n     00 → nothing\n     01 → X on qubit2\n     10 → Z on qubit2\n     11 → XZ on qubit2\n  5. Bob\'s qubit2 is now in state α|0⟩+β|1⟩ — Alice\'s original state!\n\nAfter step 2, Alice\'s qubit A is destroyed (collapsed). The state is NOT copied — it\'s moved. This is consistent with no-cloning.\n\nApplications: Quantum networks, distributed quantum computing, quantum repeaters for long-distance quantum communication.',
+        terminology: [
+          { term: 'Quantum teleportation', def: 'Protocol to transfer an unknown qubit state using a Bell pair + 2 classical bits. State is destroyed at sender.' },
+          { term: 'Classical correction', def: 'The 2-bit message Alice sends Bob. Without it, Bob cannot complete the teleportation — no FTL possible.' },
+          { term: 'No-cloning consistency', def: 'Teleportation does not clone — Alice\'s original state is destroyed during Bell measurement.' },
+          { term: 'Quantum network', def: 'A network of quantum nodes connected by quantum channels and entanglement distribution.' },
+          { term: 'Quantum repeater', def: 'Device using entanglement swapping to extend quantum entanglement over long distances.' },
+          { term: 'Entanglement swapping', def: 'Teleporting entanglement itself: makes two qubits entangled without them ever interacting directly.' },
+        ],
+      },
+      // ── STEP 13: Video — Quantum Teleportation ──
+      {
+        type: 'video' as const,
+        title: 'Looking Glass Universe: Quantum Teleportation Explained',
+        body: 'Mithuna Yoganathan\'s crystal-clear explanation of quantum teleportation — what it actually is, how the protocol works step-by-step, and why it doesn\'t violate special relativity.',
+        videoId: 'DxQK1WDYI_k',
+      },
+      // ── STEP 14: Experiment — Build Φ⁻ Bell state ──
+      {
+        type: 'experiment' as const,
+        title: 'Build the Φ⁻ Bell State with Phase',
+        body: 'Now build |Φ⁻⟩ = (|00⟩ − |11⟩)/√2 — the correlated Bell state with a relative phase.\n\nRecipe:\n  1. H on q0 at step 0\n  2. CNOT (q0→q1) at step 1\n  3. Z on q0 at step 2  ← this adds the relative phase π\n\nThe measurement probabilities look identical to Φ⁺ (50/50 between |00⟩ and |11⟩). The difference is in the phase — invisible to Z-basis measurement but detectable in the X-basis.',
+        circuit: { qubits: 2, gates: [{ type: 'H', qubit: 0, step: 0 }] },
+        task: 'Add CNOT(q0→q1) at step 1 and Z(q0) at step 2 to create |Φ⁻⟩',
+        expectedGates: [
+          { type: 'H', qubit: 0, step: 0 },
+          { type: 'CNOT', qubit: 0, target: 1, step: 1 },
+          { type: 'Z', qubit: 0, step: 2 },
+        ],
+      },
+      // ── STEP 15: Quiz 4 ──
+      {
+        type: 'quiz' as const,
+        title: 'Quiz 4: Quantum Teleportation Protocol',
+        body: 'Test your understanding of the quantum teleportation protocol.',
+        question: 'After Alice performs her Bell measurement in quantum teleportation, why must she send 2 classical bits to Bob?',
+        options: [
+          "To tell Bob the teleported qubit's value so he can recreate it",
+          "To allow Bob to apply the correct unitary correction to his qubit",
+          "To synchronize their clocks for the FTL signal",
+          "So that the no-cloning theorem is satisfied before transmission",
+        ],
+        correct: 1,
+        explanation: "Alice's Bell measurement collapses the joint system into one of four possible states, each requiring a different correction (I, X, Z, or XZ) on Bob's qubit. Without knowing which correction to apply, Bob's qubit is in a random mixed state — useless. The 2 classical bits tell him which of the four Pauli corrections to apply, completing the state transfer. This classical channel is why teleportation cannot exceed the speed of light.",
+      },
+      // ── STEP 16: Theory — Applications ──
+      {
+        type: 'read' as const,
+        title: 'Real-World Applications of Entanglement',
+        body: 'Quantum entanglement is not just a philosophical curiosity — it is the engine of an entirely new class of quantum technologies.\n\nQuantum Key Distribution (QKD):\n  The E91 protocol (Ekert, 1991) distributes Bell pairs between Alice and Bob. They measure in random bases and keep results where bases match. Any eavesdropper (Eve) disrupts the entanglement — detectable via Bell inequality violations on the shared data. Provably secure by the laws of physics, not computational hardness.\n\nQuantum Computing:\n  Entanglement is a key resource for quantum speedup. Shor\'s algorithm, Grover\'s search, and variational quantum eigensolvers all exploit multi-qubit entanglement. Without entanglement, quantum computers reduce to classical computers in polynomial time (Gottesman-Knill theorem).\n\nQuantum Networks & Repeaters:\n  The quantum internet will distribute entanglement over continental distances using quantum repeaters — chains of Bell measurements and entanglement swapping that extend coherence beyond the decoherence length of optical fibers.\n\nQuantum Sensing:\n  Entangled photons enable quantum-enhanced precision measurement — LIGO gravitational wave detectors use squeezed (entangled) light states to beat the standard quantum limit of shot noise.\n\nQuantum Error Correction:\n  Stabilizer codes (surface codes, color codes) encode logical qubits across many physical qubits using entanglement. Measuring stabilizer operators detects errors without measuring the logical qubit itself.',
+        terminology: [
+          { term: 'E91 protocol', def: 'Ekert\'s QKD protocol using Bell pairs. Security guaranteed by violation of Bell inequalities — any eavesdropping is detectable.' },
+          { term: 'Quantum internet', def: 'A future network of quantum nodes connected by long-distance entanglement for secure communication and distributed quantum computing.' },
+          { term: 'Gottesman-Knill theorem', def: 'Without entanglement, quantum circuits using only Clifford gates can be simulated classically in polynomial time.' },
+          { term: 'Stabilizer code', def: 'Quantum error-correcting code using multi-qubit entanglement to encode logical qubits robustly.' },
+          { term: 'Standard quantum limit', def: 'Measurement precision limit from shot noise in unentangled states. Entangled squeezed states can surpass it.' },
+          { term: 'Quantum advantage', def: 'Tasks where quantum systems outperform all known classical algorithms — entanglement is the key resource.' },
+        ],
+      },
+      // ── STEP 17: Quiz 5 ──
+      {
+        type: 'quiz' as const,
+        title: 'Quiz 5: Entanglement Applications & Properties',
+        body: 'Final check on entanglement theory and applications.',
+        question: 'What does the Gottesman-Knill theorem tell us about entanglement?',
+        options: [
+          'Entanglement is sufficient for exponential quantum speedup in all cases',
+          'Quantum circuits without entanglement (Clifford-only) can be simulated efficiently classically',
+          'Entanglement allows FTL communication when properly configured',
+          'Bell states cannot be prepared using only the H and CNOT gates',
+        ],
+        correct: 1,
+        explanation: 'The Gottesman-Knill theorem states that any quantum circuit using only Clifford gates (H, CNOT, S, Pauli) — even with many qubits — can be simulated efficiently on a classical computer. This means entanglement from Clifford operations alone is not sufficient for exponential quantum speedup. Non-Clifford gates (like T gate) combined with entanglement are necessary to achieve computational advantage beyond classical simulation.',
       },
     ],
   },
