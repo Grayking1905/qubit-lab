@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, Check, Code2, Flame, Menu, Moon, Play, RotateCcw, ShieldCheck, Sparkles, Sun, X } from 'lucide-react'
 import {
-  ApiError, clearSession, getMyStats, getStoredUser, listCourses, login, saveSession, signup, simulate, updateStoredUser,
+  ApiError, adminLogin as apiAdminLogin, clearSession, getMyStats, getStoredUser, listCourses, login, saveSession, signup, simulate, updateStoredUser,
   type Circuit, type CourseListItem, type SimulateResult, type User,
 } from '@/lib/api'
 import { ErrorBox, Loading, difficultyColor } from '@/components/shared'
@@ -16,8 +16,9 @@ import Assistant from '@/components/Assistant'
 import InteractiveLearn from '@/components/InteractiveLearn'
 import QuantumLab3D from '@/components/QuantumLab3DClient'
 import Algorithms from '@/components/Algorithms'
+import Questions from '@/components/Questions'
 
-type View = 'home' | 'learn' | 'educate' | 'lab3d' | 'algorithms' | 'dashboard' | 'courses' | 'builder' | 'admin' | 'login' | 'signup'
+type View = 'home' | 'learn' | 'educate' | 'lab3d' | 'algorithms' | 'dashboard' | 'courses' | 'builder' | 'admin' | 'adminlogin' | 'questions' | 'login' | 'signup'
 type Role = 'learner' | 'admin'
 
 const DEFAULT_CIRCUIT: Circuit = { qubits: 2, gates: [] }
@@ -29,11 +30,16 @@ export default function Page() {
   const [dark, setDark] = useState(true)
   const [menu, setMenu] = useState(false)
   const [assistant, setAssistant] = useState(false)
+  const [adminToken, setAdminToken] = useState<string | null>(null)
 
   const [circuit, setCircuit] = useState<Circuit>(DEFAULT_CIRCUIT)
   const [builderProblemId, setBuilderProblemId] = useState<string | null>(null)
 
-  const goTo = (next: View) => setView(next === 'admin' && role !== 'admin' ? 'dashboard' : next)
+  const goTo = (next: View) => {
+    // Guard admin view: requires either DB admin role OR a valid admin session token
+    if (next === 'admin' && role !== 'admin' && !adminToken) return setView('adminlogin')
+    setView(next)
+  }
 
   useEffect(() => {
     const stored = getStoredUser()
@@ -41,12 +47,21 @@ export default function Page() {
       setUser(stored)
       setRole(stored.role === 'ADMIN' ? 'admin' : 'learner')
     }
+    // Restore hardcoded-admin token if present
+    const storedAdminToken = localStorage.getItem('qubitlab_admin_token')
+    if (storedAdminToken) setAdminToken(storedAdminToken)
   }, [])
 
   const logout = () => {
     clearSession()
     setUser(null)
     setRole('learner')
+    setView('home')
+  }
+
+  const adminLogout = () => {
+    localStorage.removeItem('qubitlab_admin_token')
+    setAdminToken(null)
     setView('home')
   }
 
@@ -79,7 +94,7 @@ export default function Page() {
   }
 
   return <div className={dark ? 'app dark' : 'app'}>
-    <Header dark={dark} setDark={setDark} menu={menu} setMenu={setMenu} setView={goTo} role={role} user={user} onLogout={logout} />
+    <Header dark={dark} setDark={setDark} menu={menu} setMenu={setMenu} setView={goTo} role={role} user={user} onLogout={logout} adminToken={adminToken} onAdminLogout={adminLogout} />
     {view === 'home' && <Home setView={goTo} openSandbox={openSandbox} user={user} />}
     {view === 'learn' && <Learn openProblem={openProblem} />}
     {view === 'educate' && <InteractiveLearn onComplete={() => goTo('builder')} />}
@@ -87,16 +102,19 @@ export default function Page() {
     {view === 'algorithms' && <Algorithms openBuilder={openBuilderWithCircuit} />}
     {view === 'dashboard' && <Dashboard setView={goTo} user={user} openProblem={openProblem} />}
     {view === 'courses' && <Courses openProblem={openProblem} />}
+    {view === 'questions' && <Questions user={user} onSolved={refreshUser} />}
     {view === 'builder' && <Builder circuit={circuit} setCircuit={setCircuit} problemId={builderProblemId} isLoggedIn={!!user} onSolved={refreshUser} />}
-    {view === 'admin' && role === 'admin' && <Admin setView={goTo} />}
+    {view === 'admin' && (role === 'admin' || !!adminToken) && <Admin setView={goTo} />}
+    {view === 'adminlogin' && <AdminLogin setView={goTo} setAdminToken={setAdminToken} />}
     {(view === 'login' || view === 'signup') && <Auth mode={view} setView={goTo} setRole={setRole} setUser={setUser} />}
     {assistant && <Assistant circuit={circuit} setCircuit={setCircuit} close={() => setAssistant(false)} />}
-    {view !== 'login' && view !== 'signup' && <button className="ai-fab" onClick={() => setAssistant(!assistant)} aria-label="Open Qubit AI"><Sparkles size={18} /> Qubit AI</button>}
+    {view !== 'login' && view !== 'signup' && view !== 'adminlogin' && <button className="ai-fab" onClick={() => setAssistant(!assistant)} aria-label="Open Qubit AI"><Sparkles size={18} /> Qubit AI</button>}
   </div>
 }
 
-function Header({ dark, setDark, menu, setMenu, setView, role, user, onLogout }: any) {
-  return <header className="header"><button className="brand" onClick={() => setView('home')}><span className="brand-mark">◈</span><span>Qubit<span>Lab</span></span></button><nav className={menu ? 'nav open' : 'nav'}><button onClick={() => setView('educate')}>Educate</button><button onClick={() => setView('lab3d')}>3D Lab</button><button onClick={() => setView('builder')}>Playground</button><button onClick={() => setView('algorithms')}>Algorithms</button><button onClick={() => setView('learn')}>Problems</button><button onClick={() => setView('courses')}>Courses</button>{role === 'admin' && <button onClick={() => setView('admin')}><ShieldCheck size={14}/> Admin</button>}</nav><div className="header-actions"><button className="icon-btn" onClick={() => setDark(!dark)} aria-label="Toggle theme">{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>{user ? <><button className="text-btn" onClick={() => setView('dashboard')}>{user.name}</button><button className="pill-btn small" onClick={onLogout}>Log out</button></> : <><button className="text-btn" onClick={() => setView('login')}>Log in</button><button className="pill-btn small" onClick={() => setView('signup')}>Sign up</button></>}<button className="menu-btn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X/> : <Menu/>}</button></div></header>
+function Header({ dark, setDark, menu, setMenu, setView, role, user, onLogout, adminToken, onAdminLogout }: any) {
+  const streak = user?.streak ?? 0
+  return <header className="header"><button className="brand" onClick={() => setView('home')}><span className="brand-mark">◈</span><span>Qubit<span>Lab</span></span></button><nav className={menu ? 'nav open' : 'nav'}><button onClick={() => setView('educate')}>Educate</button><button onClick={() => setView('lab3d')}>3D Lab</button><button onClick={() => setView('builder')}>Playground</button><button onClick={() => setView('algorithms')}>Algorithms</button><button onClick={() => setView('learn')}>Problems</button><button onClick={() => setView('questions')}>Questions</button><button onClick={() => setView('courses')}>Courses</button>{(role === 'admin' || !!adminToken) && <button onClick={() => setView('admin')}><ShieldCheck size={14}/> Admin</button>}</nav><div className="header-actions">{user && streak > 0 && <div className="streak-badge" title={`${streak}-day streak`}><Flame size={14} className="streak-flame" /><span>{streak}</span></div>}<button className="icon-btn" onClick={() => setDark(!dark)} aria-label="Toggle theme">{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>{user ? <><button className="text-btn" onClick={() => setView('dashboard')}>{user.name}</button><button className="pill-btn small" onClick={onLogout}>Log out</button></> : <><button className="text-btn" onClick={() => setView('login')}>Log in</button><button className="pill-btn small" onClick={() => setView('signup')}>Sign up</button></>}{adminToken && !user && <button className="outline-btn small" onClick={onAdminLogout} style={{fontSize:11}}>Admin Logout</button>}{!adminToken && !user && <button className="text-btn" onClick={() => setView('adminlogin')} style={{fontSize:11,opacity:0.5}} title="Admin login">Admin</button>}<button className="menu-btn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X/> : <Menu/>}</button></div></header>
 }
 
 function Home({ setView, openSandbox, user }: any) {
@@ -221,3 +239,74 @@ function Auth({ mode, setView, setRole, setUser }: any) {
 
   return <main className="auth-page"><div className="auth-card"><button className="brand" onClick={() => setView('home')}><span className="brand-mark">◈</span><span>Qubit<span>Lab</span></span></button><p className="eyebrow">{mode === 'login' ? 'WELCOME BACK' : 'JOIN THE LAB'}</p><h1>{mode === 'login' ? 'Log in to learn.' : 'Start your quantum journey.'}</h1><p className="muted">{mode === 'login' ? 'Pick up right where you left off.' : 'Create a free account and make your first circuit.'}</p>{mode === 'signup' && <label>Name<input placeholder="Ada Lovelace" value={name} onChange={e => setName(e.target.value)} /></label>}<label>Email<input placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></label><label>Password<input placeholder="••••••••" type="password" value={password} onChange={e => setPassword(e.target.value)} /></label>{error && <p className="auth-error">{error}</p>}<button className="pill-btn full" onClick={submit} disabled={loading}>{loading ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'} <ArrowRight size={15}/></button><p className="auth-switch">{mode === 'login' ? 'New to QubitLab?' : 'Already have an account?'} <button onClick={() => setView(mode === 'login' ? 'signup' : 'login')}>{mode === 'login' ? 'Sign up' : 'Log in'}</button></p></div></main>
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Login — completely separate from the user auth system.
+// Validates against ADMIN_EMAIL / ADMIN_PASSWORD env vars (no DB lookup).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AdminLogin({ setView, setAdminToken }: any) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async () => {
+    setError('')
+    if (!email.trim() || !password) { setError('Enter admin email and password.'); return }
+    setLoading(true)
+    try {
+      const res = await apiAdminLogin(email.trim(), password)
+      localStorage.setItem('qubitlab_admin_token', res.access_token)
+      setAdminToken(res.access_token)
+      setView('admin')
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not reach the server. Is the backend running?')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <div className="auth-card admin-login-card">
+        <button className="brand" onClick={() => setView('home')}>
+          <span className="brand-mark">◈</span><span>Qubit<span>Lab</span></span>
+        </button>
+        <p className="eyebrow">ADMIN ACCESS</p>
+        <h1>Admin Login</h1>
+        <p className="muted">This is a separate admin portal. Regular user accounts cannot log in here.</p>
+        <div className="admin-login-separator" />
+        <label>
+          Admin Email
+          <input
+            id="admin-email"
+            placeholder="admin@qubitlab.dev"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          />
+        </label>
+        <label>
+          Admin Password
+          <input
+            id="admin-password"
+            placeholder="••••••••"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          />
+        </label>
+        {error && <p className="auth-error">{error}</p>}
+        <button className="pill-btn full" onClick={submit} disabled={loading} id="admin-login-submit">
+          {loading ? 'Authenticating…' : 'Access Admin Panel'} <ShieldCheck size={15} />
+        </button>
+        <p className="auth-switch">
+          <button onClick={() => setView('home')}>← Back to QubitLab</button>
+        </p>
+      </div>
+    </main>
+  )
+}
+

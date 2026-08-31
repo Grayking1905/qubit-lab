@@ -1,8 +1,10 @@
 import math
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from prisma import Json
+from pydantic import BaseModel
 
 from app.database import db
 from app.deps import get_current_user, get_optional_user
@@ -101,6 +103,23 @@ async def get_problem(problem_id: str, user=Depends(get_optional_user)):
         solved=solved,
         solutionCircuit=problem.solutionCircuit if solved else None,
     )
+
+
+class ProblemSolutionOut(BaseModel):
+    problemId: str
+    solutionCircuit: Any
+
+
+@router.get("/{problem_id}/solution")
+async def get_problem_solution(problem_id: str):
+    """Returns the admin-stored solution circuit for a problem, always.
+    Used by the 'View Solution' feature in the user questions panel.
+    No authentication required — the confirmation modal on the frontend
+    acts as a soft gate to discourage spoilers."""
+    problem = await db.problem.find_unique(where={"id": problem_id})
+    if problem is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found")
+    return {"problemId": problem.id, "solutionCircuit": problem.solutionCircuit}
 
 
 @router.post("/{problem_id}/submit", response_model=SubmitResponse)

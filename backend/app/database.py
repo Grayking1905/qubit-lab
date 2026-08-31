@@ -4,10 +4,17 @@ db = Prisma()
 
 
 async def connect_db() -> None:
-    if not db.is_connected():
-        await db.connect()
+    try:
+        if not db.is_connected():
+            await db.connect()
+    except Exception as exc:
+        print(f"[Database] Notice: Prisma database connection skipped or failed: {exc}")
 
 
 async def disconnect_db() -> None:
-    if db.is_connected():
-        await db.disconnect()
+    try:
+        if db.is_connected():
+            await db.disconnect()
+    except Exception:
+        pass
+

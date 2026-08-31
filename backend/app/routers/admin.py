@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from prisma import Json
 
 from app.database import db
-from app.deps import require_admin
+from app.deps import require_any_admin
 from app.schemas.admin import (
     ActiveUsers,
     AddCourseProblemRequest,
@@ -33,7 +33,7 @@ from app.schemas.course import CourseProblemItem
 from app.schemas.question import QuestionOut, QuestionUpdate
 from prisma.enums import Role
 
-router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_any_admin)])
 
 
 # ============================== Problems ==============================
@@ -129,7 +129,7 @@ async def list_scheduled_problems():
 # ================================ Gates ================================
 
 @router.post("/gates", response_model=GateOut, status_code=status.HTTP_201_CREATED)
-async def create_gate(payload: GateCreate, admin=Depends(require_admin)):
+async def create_gate(payload: GateCreate, admin=Depends(require_any_admin)):
     gate = await db.gate.create(
         data={
             "name": payload.name,

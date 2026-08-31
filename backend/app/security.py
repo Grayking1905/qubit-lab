@@ -22,3 +22,23 @@ def create_access_token(user_id: str, role: str) -> str:
 
 def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+
+
+# ---------------------------------------------------------------------------
+# Hardcoded-admin session tokens (separate from DB-user JWTs)
+# These never carry a real user ID — they carry admin_session=True instead.
+# ---------------------------------------------------------------------------
+
+ADMIN_SESSION_EXPIRE_HOURS = 12
+
+
+def create_admin_session_token() -> str:
+    expire = datetime.now(timezone.utc) + timedelta(hours=ADMIN_SESSION_EXPIRE_HOURS)
+    payload = {"admin_session": True, "exp": expire}
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_admin_session_token(token: str) -> dict:
+    """Returns decoded payload; raises jwt.PyJWTError on invalid/expired token."""
+    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+
