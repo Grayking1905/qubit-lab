@@ -8,11 +8,12 @@ import {
   adminDeleteCourse, adminDeleteGate, adminDeleteProblem, adminEditQuestion, adminGetAnalytics, adminGetProblem,
   adminListPendingQuestions, adminListScheduled, adminListUsers, adminRemoveCourseProblem, adminReorderCourse,
   adminScheduleProblem, adminUpdateCourse, adminUpdateGate, adminUpdateProblem,
-  getCourse, listCourses, listGates, listProblems,
+  getCourse, listGates, listProblems,
   type AnalyticsResponse, type CourseDetail, type CourseInput, type CourseListItem, type Difficulty,
   type GateInput, type GateOut, type PaginatedQuestions, type PaginatedUsers, type ProblemAdminOut,
   type ProblemInput, type ProblemListItem, type QuestionOut, type Role,
 } from '@/lib/api'
+import { useCoursesStore } from '@/lib/store'
 import { ErrorBox, Loading } from '@/components/shared'
 
 const TABS = ['Problem of the day', 'Problems', 'Courses', 'Gates', 'Users', 'Questions', 'Analytics'] as const
@@ -200,26 +201,27 @@ function ProblemEditor({ id, onDone }: { id: string | null; onDone: () => void }
 // ============================== Courses ==============================
 
 function CoursesTab() {
-  const list = useAsync(() => listCourses(), [])
+  const { items, loading, error, fetch } = useCoursesStore()
+  useEffect(() => { fetch() }, [fetch])
   const [editing, setEditing] = useState<string | 'new' | null>(null)
   const [managing, setManaging] = useState<string | null>(null)
 
-  if (managing) return <CourseProblemsManager courseId={managing} onBack={() => { setManaging(null); list.refresh() }} />
-  if (editing) return <CourseEditor id={editing === 'new' ? null : editing} onDone={() => { setEditing(null); list.refresh() }} />
+  if (managing) return <CourseProblemsManager courseId={managing} onBack={() => { setManaging(null); fetch() }} />
+  if (editing) return <CourseEditor id={editing === 'new' ? null : editing} onDone={() => { setEditing(null); fetch() }} />
 
   return <div className="admin-panel table-panel">
     <div className="panel-title"><h2>Courses</h2><button className="pill-btn small" onClick={() => setEditing('new')}><Plus size={14} /> Add new</button></div>
-    {list.loading && <Loading />}
-    {list.error && <ErrorBox message={list.error} />}
-    {list.data && (
+    {loading && <Loading />}
+    {error && <ErrorBox message={error} />}
+    {items.length > 0 && (
       <div className="admin-table">
-        {list.data.map((c: CourseListItem) => (
+        {items.map((c: CourseListItem) => (
           <div key={c.id}>
             <span className="table-avatar">{c.title[0]?.toUpperCase()}</span>
             <span><strong>{c.title}</strong><small>{c.difficulty} · {c.problemCount} problems</small></span>
             <button className="link-btn" onClick={() => setManaging(c.id)}>Manage problems</button>
             <button className="link-btn" onClick={() => setEditing(c.id)}>Edit</button>
-            <button className="icon-btn" onClick={() => deleteCourse(c.id, list.refresh)}><Trash2 size={14} /></button>
+            <button className="icon-btn" onClick={() => deleteCourse(c.id, fetch)}><Trash2 size={14} /></button>
           </div>
         ))}
       </div>
@@ -233,8 +235,9 @@ async function deleteCourse(id: string, refresh: () => void) {
 }
 
 function CourseEditor({ id, onDone }: { id: string | null; onDone: () => void }) {
-  const list = useAsync(() => listCourses(), [])
-  const existing = id ? list.data?.find(c => c.id === id) : null
+  const { items, loading, fetch } = useCoursesStore()
+  useEffect(() => { fetch() }, [fetch])
+  const existing = id ? items.find(c => c.id === id) : null
   const [form, setForm] = useState<CourseInput>({ title: '', description: '', difficulty: 'BEGINNER', order: 0 })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -256,7 +259,7 @@ function CourseEditor({ id, onDone }: { id: string | null; onDone: () => void })
     }
   }
 
-  if (id && list.loading) return <Loading />
+  if (id && loading && !existing) return <Loading />
 
   return <div className="admin-panel editor">
     <div className="panel-title"><h2>{id ? 'Edit course' : 'New course'}</h2><button className="icon-btn" onClick={onDone}><X size={15} /></button></div>
