@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # https://console.groq.com/docs/models if this stops working.
     groq_model: str = "openai/gpt-oss-120b"
 
+    # Hardcoded admin credentials — completely separate from the DB user system.
+    # These credentials authenticate to /admin/auth/login and grant access to
+    # the admin panel without requiring a DB ADMIN-role user account.
+    admin_email: str = "admin@qubitlab.dev"
+    admin_password: str = "change-me-admin-secret"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
