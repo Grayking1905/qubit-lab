@@ -1,42 +1,82 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ArrowRight, Check, ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  Activity, ArrowRight, BarChart3, BookOpen, Calendar, Check,
+  ChevronDown, ChevronUp, CircuitBoard, HelpCircle, Plus, Settings,
+  ShieldCheck, Trash2, Users, X, Zap,
+} from 'lucide-react'
 import {
   ApiError,
-  adminAddCourseProblem, adminApproveQuestion, adminCreateCourse, adminCreateGate, adminCreateProblem,
-  adminDeleteCourse, adminDeleteGate, adminDeleteProblem, adminEditQuestion, adminGetAnalytics, adminGetProblem,
-  adminListPendingQuestions, adminListScheduled, adminListUsers, adminRemoveCourseProblem, adminReorderCourse,
+  adminAddCourseProblem, adminApproveQuestion, adminCreateCourse, adminCreateGate,
+  adminCreateProblem, adminDeleteCourse, adminDeleteGate, adminDeleteProblem, adminEditQuestion,
+  adminGetProblem, adminListUsers, adminRemoveCourseProblem, adminReorderCourse,
   adminScheduleProblem, adminUpdateCourse, adminUpdateGate, adminUpdateProblem,
   getCourse, listGates, listProblems,
-  type AnalyticsResponse, type CourseDetail, type CourseInput, type CourseListItem, type Difficulty,
-  type GateInput, type GateOut, type PaginatedQuestions, type PaginatedUsers, type ProblemAdminOut,
+  type AnalyticsResponse, type CourseDetail, type CourseInput, type CourseListItem,
+  type Difficulty, type GateInput, type GateOut, type ProblemAdminOut,
   type ProblemInput, type ProblemListItem, type QuestionOut, type Role,
 } from '@/lib/api'
-import { useCoursesStore } from '@/lib/store'
+import { useAdminStore, useCoursesStore, usePolling } from '@/lib/store'
 import { ErrorBox, Loading } from '@/components/shared'
 
-const TABS = ['Problem of the day', 'Problems', 'Courses', 'Gates', 'Users', 'Questions', 'Analytics'] as const
-type Tab = typeof TABS[number]
+const TABS = [
+  { id: 'schedule',  label: 'Daily Problem',  icon: Calendar },
+  { id: 'problems',  label: 'Problems',        icon: CircuitBoard },
+  { id: 'courses',   label: 'Courses',         icon: BookOpen },
+  { id: 'gates',     label: 'Gates',           icon: Zap },
+  { id: 'users',     label: 'Users',           icon: Users },
+  { id: 'questions', label: 'Questions',       icon: HelpCircle },
+  { id: 'analytics', label: 'Analytics',       icon: BarChart3 },
+] as const
+type TabId = typeof TABS[number]['id']
 
 export default function Admin({ setView }: { setView: (v: any) => void }) {
-  const [tab, setTab] = useState<Tab>('Problem of the day')
-  return <main className="admin-page">
-    <div className="admin-head">
-      <div><p className="eyebrow">QUBITLAB / ADMIN</p><h1>Control room</h1><p>Curate the learning experience and keep the lab humming.</p></div>
-      <button className="outline-btn" onClick={() => setView('home')}><ArrowRight size={15} /> Exit admin</button>
+  const [tab, setTab] = useState<TabId>('schedule')
+
+  return (
+    <div className="admin-page">
+      {/* ── Header ──────────────────────────────────────────── */}
+      <div className="adm-header">
+        <div className="adm-header-left">
+          <p className="eyebrow">QUBITLAB / ADMIN</p>
+          <h1 className="adm-title">Control room</h1>
+          <p className="adm-subtitle">Curate the learning experience and keep the lab humming.</p>
+        </div>
+        <button className="outline-btn adm-exit-btn" onClick={() => setView('home')}>
+          <ArrowRight size={14} /> Exit admin
+        </button>
+      </div>
+
+      {/* ── Tab bar ─────────────────────────────────────────── */}
+      <div className="adm-tabs">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            className={`adm-tab${tab === id ? ' adm-tab-active' : ''}`}
+            onClick={() => setTab(id)}
+          >
+            <Icon size={14} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab panels ──────────────────────────────────────── */}
+      <div className="adm-body">
+        {tab === 'schedule'  && <ScheduleTab />}
+        {tab === 'problems'  && <ProblemsTab />}
+        {tab === 'courses'   && <CoursesTab />}
+        {tab === 'gates'     && <GatesTab />}
+        {tab === 'users'     && <UsersTab />}
+        {tab === 'questions' && <QuestionsTab />}
+        {tab === 'analytics' && <AnalyticsTab />}
+      </div>
     </div>
-    <div className="admin-tabs">{TABS.map(t => <button className={tab === t ? 'active' : ''} key={t} onClick={() => setTab(t)}>{t}</button>)}</div>
-    {tab === 'Problem of the day' && <ScheduleTab />}
-    {tab === 'Problems' && <ProblemsTab />}
-    {tab === 'Courses' && <CoursesTab />}
-    {tab === 'Gates' && <GatesTab />}
-    {tab === 'Users' && <UsersTab />}
-    {tab === 'Questions' && <QuestionsTab />}
-    {tab === 'Analytics' && <AnalyticsTab />}
-  </main>
+  )
 }
 
+/* ── useAsync: local fetch helper for per-tab data ────────────────────────── */
 function useAsync<T>(fn: () => Promise<T>, deps: any[]) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
@@ -50,15 +90,31 @@ function useAsync<T>(fn: () => Promise<T>, deps: any[]) {
   return { data, error, loading, refresh: () => setTick(t => t + 1) }
 }
 
-// ============================== Problem of the day ==============================
+/* ── Shared panel wrapper ──────────────────────────────────────────────────── */
+function AdminPanel({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  return <div className={`adm-panel ${className}`} style={style}>{children}</div>
+}
+
+/* ── SELECT helper ─────────────────────────────────────────────────────────── */
+const selectStyle: React.CSSProperties = {
+  display: 'block', width: '100%', marginTop: 7,
+  background: 'var(--bg)', border: '1px solid var(--line)',
+  borderRadius: 7, padding: '10px 12px', color: 'var(--text)',
+  fontSize: 13, outline: 'none',
+}
+
+/* ═══════════════════════════ SCHEDULE TAB ══════════════════════════════════ */
 
 function ScheduleTab() {
+  const { scheduled, scheduledLoading, fetchScheduled } = useAdminStore()
   const problems = useAsync(() => listProblems({ pageSize: 100 }), [])
-  const scheduled = useAsync(() => adminListScheduled(), [])
   const [problemId, setProblemId] = useState('')
   const [date, setDate] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const pollScheduled = useCallback((isInitial: boolean) => fetchScheduled({ silent: !isInitial }), [fetchScheduled])
+  usePolling(pollScheduled, 60_000)
 
   const submit = async () => {
     if (!problemId || !date) { setError('Pick a problem and a date.'); return }
@@ -66,7 +122,7 @@ function ScheduleTab() {
     try {
       await adminScheduleProblem(problemId, date)
       setProblemId(''); setDate('')
-      scheduled.refresh()
+      fetchScheduled()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not schedule this problem.')
     } finally {
@@ -74,42 +130,57 @@ function ScheduleTab() {
     }
   }
 
-  return <div className="admin-columns">
-    <div className="admin-panel editor">
-      <div className="panel-title"><h2>Schedule a Problem of the Day</h2></div>
-      {problems.loading && <Loading />}
-      {problems.data && (
-        <label>Problem
-          <select value={problemId} onChange={e => setProblemId(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 7, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 7, padding: 11, color: 'var(--text)' }}>
-            <option value="">Select a problem…</option>
-            {problems.data.items.map(p => <option key={p.id} value={p.id}>{p.title} ({p.difficulty})</option>)}
-          </select>
+  return (
+    <div className="adm-two-col">
+      <AdminPanel>
+        <div className="panel-title"><h2 className="adm-panel-h">Schedule a Daily Problem</h2></div>
+        {problems.loading && <Loading />}
+        {problems.data && (
+          <label className="adm-label">Problem
+            <select value={problemId} onChange={e => setProblemId(e.target.value)} style={selectStyle}>
+              <option value="">Select a problem…</option>
+              {problems.data.items.map(p => (
+                <option key={p.id} value={p.id}>{p.title} ({p.difficulty})</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label className="adm-label">Date
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="adm-input" />
         </label>
-      )}
-      <label>Date<input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
-      {error && <ErrorBox message={error} />}
-      <button className="pill-btn full" onClick={submit} disabled={saving}>{saving ? 'Scheduling…' : 'Schedule'} <Check size={14} /></button>
-    </div>
-    <div className="admin-panel">
-      <div className="panel-title"><h2>Upcoming schedule</h2></div>
-      {scheduled.loading && <Loading />}
-      {scheduled.error && <ErrorBox message={scheduled.error} />}
-      {scheduled.data && scheduled.data.length === 0 && <p className="muted">Nothing scheduled yet.</p>}
-      {scheduled.data && scheduled.data.length > 0 && (
-        <div className="schedule-list">
-          {scheduled.data.map(p => (
-            <div key={p.id}>
-              <span className="schedule-dot" />
-              <span>{p.title}<small>{p.scheduledDate ? new Date(p.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</small></span>
+        {error && <ErrorBox message={error} />}
+        <button className="pill-btn full" onClick={submit} disabled={saving} style={{ marginTop: 18 }}>
+          {saving ? 'Scheduling…' : 'Schedule'} <Check size={14} />
+        </button>
+      </AdminPanel>
+
+      <AdminPanel>
+        <div className="panel-title">
+          <h2 className="adm-panel-h">Upcoming schedule</h2>
+          <span className="muted" style={{ fontSize: 11 }}>auto-refreshing</span>
+        </div>
+        {scheduledLoading && <Loading />}
+        {!scheduledLoading && scheduled.length === 0 && (
+          <p className="muted" style={{ fontSize: 13 }}>Nothing scheduled yet.</p>
+        )}
+        <div className="adm-schedule-list">
+          {scheduled.map((p, i) => (
+            <div key={p.id} className="adm-schedule-row">
+              <span className={`adm-schedule-dot${i === 0 ? ' next' : ''}`} />
+              <div className="adm-schedule-info">
+                <strong>{p.title}</strong>
+                <small>{p.scheduledDate ? new Date(p.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</small>
+              </div>
+              {i === 0 && <span className="adm-next-badge">Next up</span>}
             </div>
           ))}
         </div>
-      )}
+      </AdminPanel>
     </div>
-  </div>
+  )
 }
 
-// ============================== Problems ==============================
+/* ═══════════════════════════ PROBLEMS TAB ══════════════════════════════════ */
 
 const emptyProblem: ProblemInput = { title: '', description: '', difficulty: 'BEGINNER', topic: '', solutionCircuit: { qubits: 2, gates: [] }, hints: [], isDaily: false }
 
@@ -119,28 +190,40 @@ function ProblemsTab() {
 
   if (editing) return <ProblemEditor id={editing === 'new' ? null : editing} onDone={() => { setEditing(null); list.refresh() }} />
 
-  return <div className="admin-panel table-panel">
-    <div className="panel-title"><h2>Problems</h2><button className="pill-btn small" onClick={() => setEditing('new')}><Plus size={14} /> Add new</button></div>
-    {list.loading && <Loading />}
-    {list.error && <ErrorBox message={list.error} />}
-    {list.data && (
-      <div className="admin-table">
-        {list.data.items.map(p => (
-          <div key={p.id}>
-            <span className="table-avatar">{p.title[0]?.toUpperCase()}</span>
-            <span><strong>{p.title}</strong><small>{p.difficulty} · {p.topic}{p.isDaily ? ' · daily' : ''}</small></span>
-            <button className="link-btn" onClick={() => setEditing(p.id)}>Edit</button>
-            <button className="icon-btn" onClick={() => deleteProblem(p.id, list.refresh)}><Trash2 size={14} /></button>
-          </div>
-        ))}
+  return (
+    <AdminPanel className="adm-full">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">Problems <span className="adm-count">{list.data?.total ?? ''}</span></h2>
+        <button className="pill-btn small" onClick={() => setEditing('new')}><Plus size={13} /> Add new</button>
       </div>
-    )}
-  </div>
+      {list.loading && <Loading />}
+      {list.error && <ErrorBox message={list.error} />}
+      {list.data && (
+        <div className="adm-table">
+          {list.data.items.map(p => (
+            <div key={p.id} className="adm-row">
+              <span className="adm-avatar">{p.title[0]?.toUpperCase()}</span>
+              <div className="adm-row-info">
+                <strong>{p.title}</strong>
+                <small>
+                  <span className={`adm-diff-tag ${p.difficulty.toLowerCase()}`}>{p.difficulty}</span>
+                  {' · '}{p.topic}{p.isDaily ? ' · daily' : ''}
+                </small>
+              </div>
+              <button className="link-btn" onClick={() => setEditing(p.id)}>Edit</button>
+              <button className="adm-icon-btn danger" onClick={() => deleteProblem(p.id, list.refresh)}><Trash2 size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </AdminPanel>
+  )
 }
 
 async function deleteProblem(id: string, refresh: () => void) {
   if (!confirm('Delete this problem? This cannot be undone.')) return
-  try { await adminDeleteProblem(id); refresh() } catch (err) { alert(err instanceof ApiError ? err.message : 'Could not delete this problem.') }
+  try { await adminDeleteProblem(id); refresh() }
+  catch (err) { alert(err instanceof ApiError ? err.message : 'Could not delete this problem.') }
 }
 
 function ProblemEditor({ id, onDone }: { id: string | null; onDone: () => void }) {
@@ -173,32 +256,46 @@ function ProblemEditor({ id, onDone }: { id: string | null; onDone: () => void }
       onDone()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save this problem.')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   if (loading) return <Loading />
 
-  return <div className="admin-panel editor">
-    <div className="panel-title"><h2>{id ? 'Edit problem' : 'New problem'}</h2><button className="icon-btn" onClick={onDone}><X size={15} /></button></div>
-    <label>Title<input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
-    <label>Description<textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-    <label>Difficulty
-      <select value={form.difficulty} onChange={e => setForm({ ...form, difficulty: e.target.value as Difficulty })} style={{ display: 'block', width: '100%', marginTop: 7, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 7, padding: 11, color: 'var(--text)' }}>
-        <option value="BEGINNER">BEGINNER</option><option value="INTERMEDIATE">INTERMEDIATE</option><option value="ADVANCED">ADVANCED</option>
-      </select>
-    </label>
-    <label>Topic<input value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })} placeholder="e.g. Entanglement" /></label>
-    <label>Hints (one per line)<textarea value={hintsText} onChange={e => setHintsText(e.target.value)} /></label>
-    <label>Solution circuit (JSON)<textarea value={circuitText} onChange={e => setCircuitText(e.target.value)} style={{ height: 140, fontFamily: 'ui-monospace,monospace', fontSize: 12 }} /></label>
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" style={{ width: 'auto', display: 'inline' }} checked={form.isDaily} onChange={e => setForm({ ...form, isDaily: e.target.checked })} /> Eligible as Problem of the Day</label>
-    {error && <ErrorBox message={error} />}
-    <button className="pill-btn full" onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Save problem'}</button>
-  </div>
+  return (
+    <AdminPanel className="adm-full editor">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">{id ? 'Edit problem' : 'New problem'}</h2>
+        <button className="adm-icon-btn" onClick={onDone}><X size={15} /></button>
+      </div>
+      <div className="adm-form-grid">
+        <label className="adm-label">Title<input className="adm-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
+        <label className="adm-label">Topic<input className="adm-input" value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })} placeholder="e.g. Entanglement" /></label>
+        <label className="adm-label" style={{ gridColumn: '1 / -1' }}>Description<textarea className="adm-input adm-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+        <label className="adm-label">Difficulty
+          <select value={form.difficulty} onChange={e => setForm({ ...form, difficulty: e.target.value as Difficulty })} style={selectStyle}>
+            <option value="BEGINNER">BEGINNER</option>
+            <option value="INTERMEDIATE">INTERMEDIATE</option>
+            <option value="ADVANCED">ADVANCED</option>
+          </select>
+        </label>
+        <label className="adm-label">Hints (one per line)<textarea className="adm-input adm-textarea" value={hintsText} onChange={e => setHintsText(e.target.value)} /></label>
+        <label className="adm-label" style={{ gridColumn: '1 / -1' }}>Solution circuit (JSON)
+          <textarea className="adm-input adm-textarea adm-mono" style={{ height: 130 }} value={circuitText} onChange={e => setCircuitText(e.target.value)} />
+        </label>
+        <label className="adm-label adm-checkbox-label">
+          <input type="checkbox" checked={form.isDaily ?? false} onChange={e => setForm({ ...form, isDaily: e.target.checked })} />
+          Eligible as Problem of the Day
+        </label>
+      </div>
+      {error && <ErrorBox message={error} />}
+      <button className="pill-btn full" onClick={submit} disabled={saving} style={{ marginTop: 18 }}>
+        {saving ? 'Saving…' : 'Save problem'}
+      </button>
+    </AdminPanel>
+  )
 }
 
-// ============================== Courses ==============================
+/* ═══════════════════════════ COURSES TAB ═══════════════════════════════════ */
 
 function CoursesTab() {
   const { items, loading, error, fetch } = useCoursesStore()
@@ -209,29 +306,41 @@ function CoursesTab() {
   if (managing) return <CourseProblemsManager courseId={managing} onBack={() => { setManaging(null); fetch() }} />
   if (editing) return <CourseEditor id={editing === 'new' ? null : editing} onDone={() => { setEditing(null); fetch() }} />
 
-  return <div className="admin-panel table-panel">
-    <div className="panel-title"><h2>Courses</h2><button className="pill-btn small" onClick={() => setEditing('new')}><Plus size={14} /> Add new</button></div>
-    {loading && <Loading />}
-    {error && <ErrorBox message={error} />}
-    {items.length > 0 && (
-      <div className="admin-table">
-        {items.map((c: CourseListItem) => (
-          <div key={c.id}>
-            <span className="table-avatar">{c.title[0]?.toUpperCase()}</span>
-            <span><strong>{c.title}</strong><small>{c.difficulty} · {c.problemCount} problems</small></span>
-            <button className="link-btn" onClick={() => setManaging(c.id)}>Manage problems</button>
-            <button className="link-btn" onClick={() => setEditing(c.id)}>Edit</button>
-            <button className="icon-btn" onClick={() => deleteCourse(c.id, fetch)}><Trash2 size={14} /></button>
-          </div>
-        ))}
+  return (
+    <AdminPanel className="adm-full">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">Courses <span className="adm-count">{items.length}</span></h2>
+        <button className="pill-btn small" onClick={() => setEditing('new')}><Plus size={13} /> Add new</button>
       </div>
-    )}
-  </div>
+      {loading && <Loading />}
+      {error && <ErrorBox message={error} />}
+      {items.length > 0 && (
+        <div className="adm-table">
+          {items.map((c: CourseListItem) => (
+            <div key={c.id} className="adm-row">
+              <span className="adm-avatar">{c.title[0]?.toUpperCase()}</span>
+              <div className="adm-row-info">
+                <strong>{c.title}</strong>
+                <small>
+                  <span className={`adm-diff-tag ${c.difficulty.toLowerCase()}`}>{c.difficulty}</span>
+                  {' · '}{c.problemCount} problems
+                </small>
+              </div>
+              <button className="link-btn" onClick={() => setManaging(c.id)}>Manage</button>
+              <button className="link-btn" onClick={() => setEditing(c.id)}>Edit</button>
+              <button className="adm-icon-btn danger" onClick={() => deleteCourse(c.id, fetch)}><Trash2 size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </AdminPanel>
+  )
 }
 
 async function deleteCourse(id: string, refresh: () => void) {
   if (!confirm('Delete this course? This cannot be undone.')) return
-  try { await adminDeleteCourse(id); refresh() } catch (err) { alert(err instanceof ApiError ? err.message : 'Could not delete this course.') }
+  try { await adminDeleteCourse(id); refresh() }
+  catch (err) { alert(err instanceof ApiError ? err.message : 'Could not delete this course.') }
 }
 
 function CourseEditor({ id, onDone }: { id: string | null; onDone: () => void }) {
@@ -254,26 +363,33 @@ function CourseEditor({ id, onDone }: { id: string | null; onDone: () => void })
       onDone()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save this course.')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   if (id && loading && !existing) return <Loading />
 
-  return <div className="admin-panel editor">
-    <div className="panel-title"><h2>{id ? 'Edit course' : 'New course'}</h2><button className="icon-btn" onClick={onDone}><X size={15} /></button></div>
-    <label>Title<input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
-    <label>Description<textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-    <label>Difficulty
-      <select value={form.difficulty} onChange={e => setForm({ ...form, difficulty: e.target.value as Difficulty })} style={{ display: 'block', width: '100%', marginTop: 7, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 7, padding: 11, color: 'var(--text)' }}>
-        <option value="BEGINNER">BEGINNER</option><option value="INTERMEDIATE">INTERMEDIATE</option><option value="ADVANCED">ADVANCED</option>
-      </select>
-    </label>
-    <label>Order<input type="number" value={form.order} onChange={e => setForm({ ...form, order: Number(e.target.value) })} /></label>
-    {error && <ErrorBox message={error} />}
-    <button className="pill-btn full" onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Save course'}</button>
-  </div>
+  return (
+    <AdminPanel className="adm-full editor">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">{id ? 'Edit course' : 'New course'}</h2>
+        <button className="adm-icon-btn" onClick={onDone}><X size={15} /></button>
+      </div>
+      <div className="adm-form-grid">
+        <label className="adm-label">Title<input className="adm-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
+        <label className="adm-label">Order<input type="number" className="adm-input" value={form.order} onChange={e => setForm({ ...form, order: Number(e.target.value) })} /></label>
+        <label className="adm-label" style={{ gridColumn: '1 / -1' }}>Description<textarea className="adm-input adm-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+        <label className="adm-label">Difficulty
+          <select value={form.difficulty} onChange={e => setForm({ ...form, difficulty: e.target.value as Difficulty })} style={selectStyle}>
+            <option value="BEGINNER">BEGINNER</option><option value="INTERMEDIATE">INTERMEDIATE</option><option value="ADVANCED">ADVANCED</option>
+          </select>
+        </label>
+      </div>
+      {error && <ErrorBox message={error} />}
+      <button className="pill-btn full" onClick={submit} disabled={saving} style={{ marginTop: 18 }}>
+        {saving ? 'Saving…' : 'Save course'}
+      </button>
+    </AdminPanel>
+  )
 }
 
 function CourseProblemsManager({ courseId, onBack }: { courseId: string; onBack: () => void }) {
@@ -304,37 +420,47 @@ function CourseProblemsManager({ courseId, onBack }: { courseId: string; onBack:
     catch (err) { setError(err instanceof ApiError ? err.message : 'Could not reorder problems.') }
   }
 
-  return <div className="admin-panel">
-    <div className="panel-title"><h2>{course.data?.title ?? 'Course'} — problems</h2><button className="icon-btn" onClick={onBack}><X size={15} /></button></div>
-    {course.loading && <Loading />}
-    {error && <ErrorBox message={error} />}
-    {course.data && (
-      <div className="admin-table">
-        {course.data.problems.map((p, i) => (
-          <div key={p.problemId}>
-            <span className="table-avatar">{i + 1}</span>
-            <span><strong>{p.title}</strong><small>{p.difficulty} · {p.topic}</small></span>
-            <button className="icon-btn" onClick={() => move(i, -1)}><ChevronUp size={14} /></button>
-            <button className="icon-btn" onClick={() => move(i, 1)}><ChevronDown size={14} /></button>
-            <button className="icon-btn" onClick={() => remove(p.problemId)}><Trash2 size={14} /></button>
-          </div>
-        ))}
-        {course.data.problems.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No problems in this course yet.</p>}
+  return (
+    <AdminPanel className="adm-full">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">{course.data?.title ?? 'Course'} — problems</h2>
+        <button className="adm-icon-btn" onClick={onBack}><X size={15} /></button>
       </div>
-    )}
-    {allProblems.data && (
-      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-        <select value={addId} onChange={e => setAddId(e.target.value)} style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 7, padding: 11, color: 'var(--text)' }}>
-          <option value="">Add a problem…</option>
-          {allProblems.data.items.filter(p => !course.data?.problems.some(cp => cp.problemId === p.id)).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-        </select>
-        <button className="pill-btn small" onClick={add}><Plus size={14} /> Add</button>
-      </div>
-    )}
-  </div>
+      {course.loading && <Loading />}
+      {error && <ErrorBox message={error} />}
+      {course.data && (
+        <div className="adm-table">
+          {course.data.problems.map((p, i) => (
+            <div key={p.problemId} className="adm-row">
+              <span className="adm-avatar">{i + 1}</span>
+              <div className="adm-row-info">
+                <strong>{p.title}</strong>
+                <small><span className={`adm-diff-tag ${p.difficulty.toLowerCase()}`}>{p.difficulty}</span>{' · '}{p.topic}</small>
+              </div>
+              <button className="adm-icon-btn" onClick={() => move(i, -1)}><ChevronUp size={13} /></button>
+              <button className="adm-icon-btn" onClick={() => move(i, 1)}><ChevronDown size={13} /></button>
+              <button className="adm-icon-btn danger" onClick={() => remove(p.problemId)}><Trash2 size={13} /></button>
+            </div>
+          ))}
+          {course.data.problems.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No problems in this course yet.</p>}
+        </div>
+      )}
+      {allProblems.data && (
+        <div className="adm-add-row">
+          <select value={addId} onChange={e => setAddId(e.target.value)} style={{ ...selectStyle, flex: 1, marginTop: 0 }}>
+            <option value="">Add a problem…</option>
+            {allProblems.data.items
+              .filter(p => !course.data?.problems.some(cp => cp.problemId === p.id))
+              .map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+          </select>
+          <button className="pill-btn small" onClick={add}><Plus size={13} /> Add</button>
+        </div>
+      )}
+    </AdminPanel>
+  )
 }
 
-// ============================== Gates ==============================
+/* ═══════════════════════════ GATES TAB ═════════════════════════════════════ */
 
 function GatesTab() {
   const list = useAsync(() => listGates(), [])
@@ -342,33 +468,44 @@ function GatesTab() {
 
   if (editing) return <GateEditor gate={editing === 'new' ? null : editing} onDone={() => { setEditing(null); list.refresh() }} />
 
-  return <div className="admin-panel table-panel">
-    <div className="panel-title"><h2>Gates</h2><button className="pill-btn small" onClick={() => setEditing('new')}><Plus size={14} /> Add new</button></div>
-    {list.loading && <Loading />}
-    {list.error && <ErrorBox message={list.error} />}
-    {list.data && (
-      <div className="admin-table">
-        {list.data.map(g => (
-          <div key={g.id}>
-            <span className="table-avatar">{g.symbol}</span>
-            <span><strong>{g.name}</strong><small>{g.description}</small></span>
-            <button className="link-btn" onClick={() => setEditing(g)}>Edit</button>
-            <button className="icon-btn" onClick={() => deleteGate(g.id, list.refresh)}><Trash2 size={14} /></button>
-          </div>
-        ))}
-        {list.data.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No custom gates yet.</p>}
+  return (
+    <AdminPanel className="adm-full">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">Custom Gates</h2>
+        <button className="pill-btn small" onClick={() => setEditing('new')}><Plus size={13} /> Add new</button>
       </div>
-    )}
-  </div>
+      {list.loading && <Loading />}
+      {list.error && <ErrorBox message={list.error} />}
+      {list.data && (
+        <div className="adm-table">
+          {list.data.map(g => (
+            <div key={g.id} className="adm-row">
+              <span className="adm-avatar adm-gate-avatar">{g.symbol}</span>
+              <div className="adm-row-info">
+                <strong>{g.name}</strong>
+                <small>{g.description}</small>
+              </div>
+              <button className="link-btn" onClick={() => setEditing(g)}>Edit</button>
+              <button className="adm-icon-btn danger" onClick={() => deleteGate(g.id, list.refresh)}><Trash2 size={13} /></button>
+            </div>
+          ))}
+          {list.data.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No custom gates yet.</p>}
+        </div>
+      )}
+    </AdminPanel>
+  )
 }
 
 async function deleteGate(id: string, refresh: () => void) {
   if (!confirm('Delete this gate?')) return
-  try { await adminDeleteGate(id); refresh() } catch (err) { alert(err instanceof ApiError ? err.message : 'Could not delete this gate.') }
+  try { await adminDeleteGate(id); refresh() }
+  catch (err) { alert(err instanceof ApiError ? err.message : 'Could not delete this gate.') }
 }
 
 function GateEditor({ gate, onDone }: { gate: GateOut | null; onDone: () => void }) {
-  const [form, setForm] = useState<GateInput>(gate ? { name: gate.name, symbol: gate.symbol, description: gate.description, matrixDefinition: gate.matrixDefinition } : { name: '', symbol: '', description: '', matrixDefinition: {} })
+  const [form, setForm] = useState<GateInput>(gate
+    ? { name: gate.name, symbol: gate.symbol, description: gate.description, matrixDefinition: gate.matrixDefinition }
+    : { name: '', symbol: '', description: '', matrixDefinition: {} })
   const [matrixText, setMatrixText] = useState(JSON.stringify(form.matrixDefinition, null, 2))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -379,29 +516,37 @@ function GateEditor({ gate, onDone }: { gate: GateOut | null; onDone: () => void
     try { matrixDefinition = JSON.parse(matrixText) } catch { setError('Matrix definition JSON is invalid.'); return }
     setSaving(true)
     try {
-      const payload = { ...form, matrixDefinition }
-      if (gate) await adminUpdateGate(gate.id, payload)
-      else await adminCreateGate(payload)
+      if (gate) await adminUpdateGate(gate.id, { ...form, matrixDefinition })
+      else await adminCreateGate({ ...form, matrixDefinition })
       onDone()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save this gate.')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  return <div className="admin-panel editor">
-    <div className="panel-title"><h2>{gate ? 'Edit gate' : 'New gate'}</h2><button className="icon-btn" onClick={onDone}><X size={15} /></button></div>
-    <label>Name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
-    <label>Symbol<input value={form.symbol} onChange={e => setForm({ ...form, symbol: e.target.value })} /></label>
-    <label>Description<textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-    <label>Matrix definition (JSON)<textarea value={matrixText} onChange={e => setMatrixText(e.target.value)} style={{ height: 100, fontFamily: 'ui-monospace,monospace', fontSize: 12 }} /></label>
-    {error && <ErrorBox message={error} />}
-    <button className="pill-btn full" onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Save gate'}</button>
-  </div>
+  return (
+    <AdminPanel className="adm-full editor">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">{gate ? 'Edit gate' : 'New gate'}</h2>
+        <button className="adm-icon-btn" onClick={onDone}><X size={15} /></button>
+      </div>
+      <div className="adm-form-grid">
+        <label className="adm-label">Name<input className="adm-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
+        <label className="adm-label">Symbol<input className="adm-input" value={form.symbol} onChange={e => setForm({ ...form, symbol: e.target.value })} /></label>
+        <label className="adm-label" style={{ gridColumn: '1 / -1' }}>Description<textarea className="adm-input adm-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+        <label className="adm-label" style={{ gridColumn: '1 / -1' }}>Matrix definition (JSON)
+          <textarea className="adm-input adm-textarea adm-mono" style={{ height: 100 }} value={matrixText} onChange={e => setMatrixText(e.target.value)} />
+        </label>
+      </div>
+      {error && <ErrorBox message={error} />}
+      <button className="pill-btn full" onClick={submit} disabled={saving} style={{ marginTop: 18 }}>
+        {saving ? 'Saving…' : 'Save gate'}
+      </button>
+    </AdminPanel>
+  )
 }
 
-// ============================== Users ==============================
+/* ═══════════════════════════ USERS TAB ═════════════════════════════════════ */
 
 function UsersTab() {
   const [search, setSearch] = useState('')
@@ -409,55 +554,103 @@ function UsersTab() {
   const [page, setPage] = useState(1)
   const list = useAsync(() => adminListUsers({ search: search || undefined, role: role || undefined, page, pageSize: 15 }), [search, role, page])
 
-  return <div className="admin-panel table-panel">
-    <div className="panel-title">
-      <h2>Users</h2>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <input placeholder="Search name or email" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 7, padding: 9, color: 'var(--text)', fontSize: 12 }} />
-        <select value={role} onChange={e => { setRole(e.target.value as Role | ''); setPage(1) }} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 7, padding: 9, color: 'var(--text)', fontSize: 12 }}>
-          <option value="">All roles</option><option value="STUDENT">STUDENT</option><option value="ADMIN">ADMIN</option>
-        </select>
+  return (
+    <AdminPanel className="adm-full">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">Users <span className="adm-count">{list.data?.total ?? ''}</span></h2>
+        <div className="adm-filter-row">
+          <input
+            placeholder="Search name or email"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            className="adm-input adm-search"
+          />
+          <select
+            value={role}
+            onChange={e => { setRole(e.target.value as Role | ''); setPage(1) }}
+            style={{ ...selectStyle, width: 'auto', marginTop: 0, padding: '8px 10px', fontSize: 12 }}
+          >
+            <option value="">All roles</option>
+            <option value="STUDENT">STUDENT</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
       </div>
-    </div>
-    {list.loading && <Loading />}
-    {list.error && <ErrorBox message={list.error} />}
-    {list.data && (
-      <div className="admin-table">
-        {list.data.items.map(u => (
-          <div key={u.id}>
-            <span className="table-avatar">{u.name[0]?.toUpperCase()}</span>
-            <span><strong>{u.name}</strong><small>{u.email} · {u.role}</small></span>
-            <span className="muted">Lvl {u.level} · {u.xp} XP · {u.streak}d streak</span>
-          </div>
-        ))}
-      </div>
-    )}
-    {list.data && list.data.totalPages > 1 && <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 16 }}>
-      <button className="link-btn" onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</button>
-      <span className="muted">Page {list.data.page} of {list.data.totalPages}</span>
-      <button className="link-btn" onClick={() => setPage(p => p + 1)}>Next</button>
-    </div>}
-  </div>
+      {list.loading && <Loading />}
+      {list.error && <ErrorBox message={list.error} />}
+      {list.data && (
+        <div className="adm-table">
+          {list.data.items.map(u => (
+            <div key={u.id} className="adm-row">
+              <span className="adm-avatar">{u.name[0]?.toUpperCase()}</span>
+              <div className="adm-row-info">
+                <strong>{u.name}</strong>
+                <small>{u.email} · <span className={u.role === 'ADMIN' ? 'adm-role-admin' : 'adm-role-student'}>{u.role}</span></small>
+              </div>
+              <div className="adm-user-stats">
+                <span className="adm-stat-pill blue">Lvl {u.level}</span>
+                <span className="adm-stat-pill orange">{u.xp} XP</span>
+                <span className="adm-stat-pill green">{u.streak}d 🔥</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {list.data && list.data.totalPages > 1 && (
+        <div className="adm-pagination">
+          <button className="link-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
+          <span className="muted" style={{ fontSize: 12 }}>Page {list.data.page} of {list.data.totalPages}</span>
+          <button className="link-btn" onClick={() => setPage(p => p + 1)} disabled={page >= list.data!.totalPages}>Next</button>
+        </div>
+      )}
+    </AdminPanel>
+  )
 }
 
-// ============================== Questions ==============================
+/* ═══════════════════════════ QUESTIONS TAB ═════════════════════════════════ */
 
 function QuestionsTab() {
-  const list = useAsync(() => adminListPendingQuestions(1, 50), [])
+  const { pendingQuestions, pendingLoading, fetchPending } = useAdminStore()
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  return <div className="admin-panel table-panel">
-    <div className="panel-title"><h2>AI-generated questions pending review</h2></div>
-    {list.loading && <Loading />}
-    {list.error && <ErrorBox message={list.error} />}
-    {list.data && list.data.items.length === 0 && <p className="muted">Nothing pending review.</p>}
-    {list.data && list.data.items.map(q => (
-      <QuestionReviewRow key={q.id} question={q} editing={editingId === q.id} onEdit={() => setEditingId(q.id)} onCancel={() => setEditingId(null)} onChanged={list.refresh} />
-    ))}
-  </div>
+  const poll = useCallback((isInitial: boolean) => fetchPending({ silent: !isInitial }), [fetchPending])
+  usePolling(poll, 30_000)
+
+  const items = pendingQuestions?.items ?? []
+
+  return (
+    <AdminPanel className="adm-full">
+      <div className="panel-title">
+        <h2 className="adm-panel-h">
+          Pending review
+          {items.length > 0 && <span className="adm-count adm-count-warn">{items.length}</span>}
+        </h2>
+        <span className="muted" style={{ fontSize: 11 }}>auto-refreshing every 30s</span>
+      </div>
+      {pendingLoading && <Loading />}
+      {!pendingLoading && items.length === 0 && (
+        <div className="adm-empty">
+          <ShieldCheck size={32} style={{ color: 'var(--green)', opacity: 0.7 }} />
+          <p>Nothing pending review — all caught up!</p>
+        </div>
+      )}
+      {items.map(q => (
+        <QuestionReviewRow
+          key={q.id}
+          question={q}
+          editing={editingId === q.id}
+          onEdit={() => setEditingId(q.id)}
+          onCancel={() => setEditingId(null)}
+          onChanged={() => fetchPending()}
+        />
+      ))}
+    </AdminPanel>
+  )
 }
 
-function QuestionReviewRow({ question, editing, onEdit, onCancel, onChanged }: { question: QuestionOut; editing: boolean; onEdit: () => void; onCancel: () => void; onChanged: () => void }) {
+function QuestionReviewRow({ question, editing, onEdit, onCancel, onChanged }: {
+  question: QuestionOut; editing: boolean; onEdit: () => void; onCancel: () => void; onChanged: () => void
+}) {
   const [text, setText] = useState(question.questionText)
   const [options, setOptions] = useState(question.options.join('\n'))
   const [correctIndex, setCorrectIndex] = useState(question.correctOptionIndex)
@@ -466,7 +659,8 @@ function QuestionReviewRow({ question, editing, onEdit, onCancel, onChanged }: {
   const [saving, setSaving] = useState(false)
 
   const approve = async () => {
-    try { await adminApproveQuestion(question.id); onChanged() } catch (err) { alert(err instanceof ApiError ? err.message : 'Could not approve this question.') }
+    try { await adminApproveQuestion(question.id); onChanged() }
+    catch (err) { alert(err instanceof ApiError ? err.message : 'Could not approve this question.') }
   }
 
   const save = async () => {
@@ -476,84 +670,149 @@ function QuestionReviewRow({ question, editing, onEdit, onCancel, onChanged }: {
       onCancel(); onChanged()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save this question.')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  if (editing) return <div className="editor" style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 10 }}>
-    <label>Question<textarea value={text} onChange={e => setText(e.target.value)} /></label>
-    <label>Options (one per line)<textarea value={options} onChange={e => setOptions(e.target.value)} /></label>
-    <label>Correct option index (0-3)<input type="number" min={0} max={3} value={correctIndex} onChange={e => setCorrectIndex(Number(e.target.value))} /></label>
-    <label>Explanation<textarea value={explanation} onChange={e => setExplanation(e.target.value)} /></label>
-    {error && <ErrorBox message={error} />}
-    <div style={{ display: 'flex', gap: 10 }}>
-      <button className="pill-btn small" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-      <button className="outline-btn small" onClick={onCancel}>Cancel</button>
+  if (editing) return (
+    <div className="adm-q-editor">
+      <label className="adm-label">Question<textarea className="adm-input adm-textarea" value={text} onChange={e => setText(e.target.value)} /></label>
+      <label className="adm-label">Options (one per line)<textarea className="adm-input adm-textarea" value={options} onChange={e => setOptions(e.target.value)} /></label>
+      <label className="adm-label">Correct option index (0–3)<input type="number" min={0} max={3} className="adm-input" value={correctIndex} onChange={e => setCorrectIndex(Number(e.target.value))} /></label>
+      <label className="adm-label">Explanation<textarea className="adm-input adm-textarea" value={explanation} onChange={e => setExplanation(e.target.value)} /></label>
+      {error && <ErrorBox message={error} />}
+      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+        <button className="pill-btn small" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+        <button className="outline-btn small" onClick={onCancel}>Cancel</button>
+      </div>
     </div>
-  </div>
+  )
 
-  return <div style={{ borderTop: '1px solid var(--line)', padding: '16px 0' }}>
-    <p style={{ fontWeight: 700, margin: '0 0 8px' }}>{question.questionText}</p>
-    <ul className="muted" style={{ fontSize: 12, margin: '0 0 10px', paddingLeft: 18 }}>
-      {question.options.map((o, i) => <li key={i} style={i === question.correctOptionIndex ? { color: 'var(--green)' } : undefined}>{o}</li>)}
-    </ul>
-    <div style={{ display: 'flex', gap: 10 }}>
-      <button className="pill-btn small" onClick={approve}>Approve</button>
-      <button className="outline-btn small" onClick={onEdit}>Edit</button>
+  return (
+    <div className="adm-q-row">
+      <p className="adm-q-text">{question.questionText}</p>
+      <ul className="adm-q-opts">
+        {question.options.map((o, i) => (
+          <li key={i} className={i === question.correctOptionIndex ? 'adm-q-opt-correct' : 'adm-q-opt'}>{o}</li>
+        ))}
+      </ul>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="pill-btn small" onClick={approve}>
+          <Check size={12} /> Approve
+        </button>
+        <button className="outline-btn small" onClick={onEdit}>Edit</button>
+      </div>
     </div>
-  </div>
+  )
 }
 
-// ============================== Analytics ==============================
+/* ═══════════════════════════ ANALYTICS TAB ════════════════════════════════ */
 
 function AnalyticsTab() {
-  const { data, loading, error } = useAsync<AnalyticsResponse>(() => adminGetAnalytics(), [])
-  if (loading) return <Loading />
-  if (error) return <ErrorBox message={error} />
-  if (!data) return null
+  const { analytics, analyticsLoading, analyticsError, fetchAnalytics } = useAdminStore()
 
-  const maxDaily = Math.max(1, ...data.dailySubmissions.map(d => d.count))
+  const poll = useCallback((isInitial: boolean) => fetchAnalytics({ silent: !isInitial }), [fetchAnalytics])
+  usePolling(poll, 60_000)
 
-  return <>
-    <div className="admin-stats">
-      <div className="stat-card"><strong>{data.activeUsers.last7Days}</strong><span>active users (7d)</span></div>
-      <div className="stat-card"><strong>{data.activeUsers.last30Days}</strong><span>active users (30d)</span></div>
-      <div className="stat-card"><strong>{data.dailySubmissions.reduce((a, d) => a + d.count, 0)}</strong><span>submissions (30d)</span></div>
-    </div>
-    <div className="admin-columns">
-      <div className="admin-panel">
-        <div className="panel-title"><h2>Daily submissions</h2></div>
-        <div className="chart"><div className="chart-line">
-          {data.dailySubmissions.slice(-14).map(d => <i key={d.date} style={{ height: `${Math.max(4, (d.count / maxDaily) * 100)}%` }} title={`${d.date}: ${d.count}`} />)}
-        </div></div>
+  if (analyticsLoading && !analytics) return <Loading label="Loading analytics…" />
+  if (analyticsError && !analytics) return <ErrorBox message={analyticsError} />
+  if (!analytics) return null
+
+  const maxDaily = Math.max(1, ...analytics.dailySubmissions.map(d => d.count))
+  const totalSubs = analytics.dailySubmissions.reduce((a, d) => a + d.count, 0)
+  const diffRates = Object.entries(analytics.completionRateByDifficulty)
+
+  return (
+    <div>
+      {/* KPI row */}
+      <div className="adm-kpi-row">
+        <KpiCard icon={<Users size={18} />} value={analytics.activeUsers.last7Days} label="Active users (7d)" accent="blue" />
+        <KpiCard icon={<Users size={18} />} value={analytics.activeUsers.last30Days} label="Active users (30d)" accent="green" />
+        <KpiCard icon={<Activity size={18} />} value={totalSubs} label="Submissions (30d)" accent="orange" />
+        <KpiCard icon={<BarChart3 size={18} />} value={analytics.mostAttemptedProblems.length} label="Active problems" accent="pink" />
       </div>
-      <div className="admin-panel">
-        <div className="panel-title"><h2>Completion rate by difficulty</h2></div>
-        {Object.entries(data.completionRateByDifficulty).map(([d, rate]) => (
-          <div key={d} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-            <span className="muted">{d}</span><strong>{(rate * 100).toFixed(0)}%</strong>
+
+      <div className="adm-two-col" style={{ marginTop: 16 }}>
+        {/* Daily submissions chart */}
+        <AdminPanel>
+          <div className="panel-title">
+            <h2 className="adm-panel-h">Daily submissions</h2>
+            <span className="muted" style={{ fontSize: 11 }}>Last 14 days · auto-refresh 60s</span>
           </div>
-        ))}
+          <div className="adm-bar-chart">
+            {analytics.dailySubmissions.slice(-14).map(d => (
+              <div key={d.date} className="adm-bar-col" title={`${d.date}: ${d.count}`}>
+                <div
+                  className="adm-bar-fill"
+                  style={{ height: `${Math.max(4, (d.count / maxDaily) * 100)}%` }}
+                />
+                <span className="adm-bar-label">{new Date(d.date).getDate()}</span>
+              </div>
+            ))}
+          </div>
+        </AdminPanel>
+
+        {/* Completion rate */}
+        <AdminPanel>
+          <div className="panel-title"><h2 className="adm-panel-h">Completion rate</h2></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
+            {diffRates.map(([diff, rate]) => {
+              const accent = diff === 'BEGINNER' ? 'orange' : diff === 'INTERMEDIATE' ? 'blue' : 'pink'
+              return (
+                <div key={diff}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span className={`adm-diff-tag ${diff.toLowerCase()}`}>{diff}</span>
+                    <strong style={{ fontSize: 13 }}>{(rate * 100).toFixed(0)}%</strong>
+                  </div>
+                  <div className="adm-prog-track">
+                    <div className={`adm-prog-fill ${accent}`} style={{ width: `${(rate * 100).toFixed(0)}%`, transition: 'width 0.8s ease' }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </AdminPanel>
       </div>
+
+      {/* Most attempted */}
+      <AdminPanel className="adm-full" style={{ marginTop: 16 }}>
+        <div className="panel-title"><h2 className="adm-panel-h">Most attempted problems</h2></div>
+        <div className="adm-table">
+          {analytics.mostAttemptedProblems.map((p, i) => (
+            <div key={p.problemId} className="adm-row">
+              <span className="adm-avatar" style={{ fontSize: 11 }}>#{i + 1}</span>
+              <div className="adm-row-info"><strong>{p.title}</strong></div>
+              <span className="adm-stat-pill orange">{p.attempts} attempts</span>
+            </div>
+          ))}
+          {analytics.mostAttemptedProblems.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No submissions yet.</p>}
+        </div>
+      </AdminPanel>
+
+      {/* Hardest questions */}
+      <AdminPanel className="adm-full" style={{ marginTop: 16 }}>
+        <div className="panel-title"><h2 className="adm-panel-h">Hardest quiz questions</h2></div>
+        <div className="adm-table">
+          {analytics.hardestQuestions.map(q => (
+            <div key={q.questionId} className="adm-row">
+              <div className="adm-row-info"><strong>{q.questionText}</strong><small>{q.attempts} attempts</small></div>
+              <span className="adm-stat-pill pink">{(q.incorrectRate * 100).toFixed(0)}% incorrect</span>
+            </div>
+          ))}
+          {analytics.hardestQuestions.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No quiz attempts recorded yet.</p>}
+        </div>
+      </AdminPanel>
     </div>
-    <div className="admin-panel table-panel" style={{ marginTop: 16 }}>
-      <div className="panel-title"><h2>Most-attempted problems</h2></div>
-      <div className="admin-table">
-        {data.mostAttemptedProblems.map(p => (
-          <div key={p.problemId}><span><strong>{p.title}</strong></span><span className="muted">{p.attempts} attempts</span></div>
-        ))}
-        {data.mostAttemptedProblems.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No submissions yet.</p>}
-      </div>
+  )
+}
+
+function KpiCard({ icon, value, label, accent }: {
+  icon: React.ReactNode; value: number; label: string; accent: 'orange' | 'green' | 'blue' | 'pink'
+}) {
+  return (
+    <div className={`adm-kpi-card adm-kpi-${accent}`}>
+      <span className={`adm-kpi-icon ${accent}`}>{icon}</span>
+      <strong className="adm-kpi-value">{value.toLocaleString()}</strong>
+      <span className="adm-kpi-label">{label}</span>
     </div>
-    <div className="admin-panel table-panel" style={{ marginTop: 16 }}>
-      <div className="panel-title"><h2>Hardest quiz questions</h2></div>
-      <div className="admin-table">
-        {data.hardestQuestions.map(q => (
-          <div key={q.questionId}><span><strong>{q.questionText}</strong><small>{q.attempts} attempts</small></span><span className="muted">{(q.incorrectRate * 100).toFixed(0)}% incorrect</span></div>
-        ))}
-        {data.hardestQuestions.length === 0 && <p className="muted" style={{ padding: '14px 0' }}>No quiz attempts recorded yet.</p>}
-      </div>
-    </div>
-  </>
+  )
 }
