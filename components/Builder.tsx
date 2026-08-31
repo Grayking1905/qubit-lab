@@ -47,7 +47,7 @@ function DraggableGateTool({ type, label, selected, onSelect }: { type: GateType
       onClick={onSelect}
       onPointerDown={e => {
         playPopUp()
-        listeners.onPointerDown?.(e)
+        listeners?.onPointerDown?.(e)
       }}
       whileHover={{ x: 2 }}
       whileTap={{ scale: 0.97 }}
@@ -66,7 +66,7 @@ function DropCell({ q, step, symbol, pending, onClick }: { q: number; step: numb
       style={pending ? { opacity: 0.5 } : undefined}
       onClick={onClick}
       animate={symbol && !pending ? { scale: [0.85, 1.06, 1] } : {}}
-      transition={{ type: 'spring', stiffness: 450, damping: 18 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
     >
       {symbol ?? ''}
     </motion.button>

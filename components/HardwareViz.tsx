@@ -110,7 +110,7 @@ function ChipModel() {
               fill={sel === n.id ? '#f47c45' : '#211e1a'}
               stroke="#f47c45"
               animate={sel === n.id ? { scale: [1, 1.08, 1] } : {}}
-              transition={{ repeat: sel === n.id ? Infinity : 0, duration: 1.6 }}
+              transition={{ repeat: sel === n.id ? Infinity : 0, duration: 1.6, ease: 'easeInOut' }}
             />
             <text x={n.x} y={n.y + 1.2} textAnchor="middle" fontSize="3.6" fill="#f2ead9">{n.label}</text>
           </g>
