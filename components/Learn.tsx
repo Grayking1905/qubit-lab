@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { ApiError, listProblems, type Difficulty, type PaginatedProblems } from '@/lib/api'
+import { usePolling } from '@/lib/store'
 import { ErrorBox, Loading, difficultyColor, formatDate } from '@/components/shared'
 
 const DIFFICULTIES: Difficulty[] = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED']
@@ -24,14 +25,14 @@ export default function Learn({ openProblem }: { openProblem: (id: string) => vo
       .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    setLoading(true)
+  usePolling(isInitial => {
+    if (isInitial) setLoading(true)
     setError('')
     listProblems({ topic: topic ?? undefined, difficulty: difficulty ?? undefined, search: search || undefined, page, pageSize: 10 })
       .then(setData)
       .catch(err => setError(err instanceof ApiError ? err.message : 'Could not load problems. Is the backend running?'))
       .finally(() => setLoading(false))
-  }, [topic, difficulty, search, page])
+  }, 15000, [topic, difficulty, search, page])
 
   return <main className="workspace">
     <aside className="sidebar">
