@@ -7,14 +7,20 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import connect_db, disconnect_db
-from app.routers import admin, ai, auth, courses, gates, leaderboard, problems, questions, sandbox, simulate, users
+from app.routers import admin, admin_auth, ai, auth, badges, courses, gates, leaderboard, problems, questions, sandbox, simulate, users
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await connect_db()
+    try:
+        await connect_db()
+    except Exception as exc:
+        print(f"Warning: Database connection failed during startup: {exc}")
     yield
-    await disconnect_db()
+    try:
+        await disconnect_db()
+    except Exception:
+        pass
 
 
 app = FastAPI(title="QubitLab API", version="1.0.0", lifespan=lifespan)
@@ -39,6 +45,7 @@ async def http_exception_handler(request, exc: HTTPException):
 
 
 app.include_router(auth.router)
+app.include_router(admin_auth.router)  # must come before admin.router
 app.include_router(problems.router)
 app.include_router(courses.router)
 app.include_router(simulate.router)
@@ -49,6 +56,7 @@ app.include_router(questions.router)
 app.include_router(ai.router)
 app.include_router(admin.router)
 app.include_router(gates.router)
+app.include_router(badges.router)
 
 
 @app.get("/health")

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ArrowRight, Award, Check, Flame, Play, Trophy, Zap } from 'lucide-react'
-import { ApiError, getDailyProblem, getMyStats, type DailyProblem, type User, type UserStats } from '@/lib/api'
+import { ApiError, getDailyProblem, getMyStats, listAllBadges, type BadgePublicOut, type DailyProblem, type User, type UserStats } from '@/lib/api'
 import { ErrorBox, Loading, Stat } from '@/components/shared'
 
 export default function Dashboard({ user, setView, openProblem }: { user: User | null; setView: (v: any) => void; openProblem: (id: string) => void }) {
@@ -10,6 +10,11 @@ export default function Dashboard({ user, setView, openProblem }: { user: User |
   const [statsError, setStatsError] = useState('')
   const [daily, setDaily] = useState<DailyProblem | null>(null)
   const [dailyChecked, setDailyChecked] = useState(false)
+  const [allBadges, setAllBadges] = useState<BadgePublicOut[]>([])
+
+  useEffect(() => {
+    listAllBadges().then(setAllBadges).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -83,15 +88,21 @@ export default function Dashboard({ user, setView, openProblem }: { user: User |
           </div>
         </div>
 
-        {stats && stats.badges.length > 0 && (
+        {/* Badges — always shown; earned = highlighted, locked = grayed out */}
+        {allBadges.length > 0 && (
           <div className="panel" style={{ marginTop: 16 }}>
-            <div className="panel-title"><h2>Badges earned</h2></div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-              {stats.badges.map(ub => (
-                <div key={ub.badge.id} className="tag orange" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--line)', borderRadius: 8, padding: '8px 12px' }}>
-                  <Award size={14} /> {ub.badge.name}
-                </div>
-              ))}
+            <div className="panel-title"><h2>Badges</h2><span className="muted">{stats ? stats.badges.length : 0} of {allBadges.length} earned</span></div>
+            <div className="badge-grid">
+              {allBadges.map(badge => {
+                const earned = stats?.badges.some(ub => ub.badge.id === badge.id) ?? false
+                return (
+                  <div key={badge.id} className={earned ? 'badge-item badge-earned' : 'badge-item badge-locked'} title={badge.description}>
+                    <span className="badge-icon">{badge.icon}</span>
+                    <span className="badge-name">{badge.name}</span>
+                    {!earned && <span className="badge-locked-label">Locked</span>}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
