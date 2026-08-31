@@ -2,19 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, ChevronRight } from 'lucide-react'
-import { ApiError, getCourse, listCourses, type CourseDetail, type CourseListItem } from '@/lib/api'
+import { ApiError, getCourse, type CourseDetail } from '@/lib/api'
+import { useCoursesStore, usePolling } from '@/lib/store'
 import { ErrorBox, Loading, difficultyColor } from '@/components/shared'
 
 export default function Courses({ openProblem }: { openProblem: (id: string) => void }) {
-  const [courses, setCourses] = useState<CourseListItem[] | null>(null)
-  const [error, setError] = useState('')
+  const { items: courses, loading, error, fetch } = useCoursesStore()
   const [selected, setSelected] = useState<string | null>(null)
 
-  useEffect(() => {
-    listCourses()
-      .then(setCourses)
-      .catch(err => setError(err instanceof ApiError ? err.message : 'Could not load courses. Is the backend running?'))
-  }, [])
+  usePolling(isInitial => fetch({ silent: !isInitial }), 20000, [fetch])
 
   if (selected) return <CourseDetailView courseId={selected} onBack={() => setSelected(null)} openProblem={openProblem} />
 
@@ -22,10 +18,10 @@ export default function Courses({ openProblem }: { openProblem: (id: string) => 
     <div className="workspace-heading">
       <div><p className="eyebrow">THE QUBITLAB CATALOG</p><h1>Learn at your level.</h1><p>Concepts, circuits, and challenges designed to compound.</p></div>
     </div>
-    {!courses && !error && <Loading label="Loading courses…" />}
+    {loading && <Loading label="Loading courses…" />}
     {error && <ErrorBox message={error} />}
-    {courses && courses.length === 0 && <p className="muted">No courses have been published yet.</p>}
-    {courses && courses.length > 0 && <div className="course-grid">
+    {!loading && !error && courses.length === 0 && <p className="muted">No courses have been published yet.</p>}
+    {courses.length > 0 && <div className="course-grid">
       {courses.map(c => (
         <button key={c.id} className="track-card" onClick={() => setSelected(c.id)}>
           <span className={'tag ' + difficultyColor(c.difficulty)}>{c.difficulty}</span>
