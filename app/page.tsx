@@ -32,9 +32,14 @@ export default function Page() {
 
   const [circuit, setCircuit] = useState<Circuit>(DEFAULT_CIRCUIT)
   const [builderProblemId, setBuilderProblemId] = useState<string | null>(null)
+  const [builderMode, setBuilderMode] = useState<'studio' | 'games'>('games')
 
   const goTo = (next: View) => {
     if (next === 'admin' && role !== 'admin' && !adminToken) return setView('login')
+    if (next === 'builder') {
+      setBuilderMode('games')
+      setBuilderProblemId(null)
+    }
     setView(next)
   }
 
@@ -59,30 +64,33 @@ export default function Page() {
   const openProblem = (id: string) => {
     setBuilderProblemId(id)
     setCircuit(DEFAULT_CIRCUIT)
+    setBuilderMode('studio')
     setView('builder')
   }
 
-  const openSandbox = () => {
+  const openCircuitStudio = (c?: Circuit) => {
+    if (c) setCircuit(c)
     setBuilderProblemId(null)
+    setBuilderMode('studio')
     setView('builder')
   }
 
-  const openBuilderWithCircuit = (c: Circuit) => {
-    setCircuit(c)
+  const openPlaygroundGames = () => {
     setBuilderProblemId(null)
+    setBuilderMode('games')
     setView('builder')
   }
 
   return <div className={dark ? 'app dark' : 'app'}>
-    <Header dark={dark} setDark={setDark} menu={menu} setMenu={setMenu} setView={goTo} role={role} user={user} onLogout={logout} adminToken={adminToken} onAdminLogout={adminLogout} />
-    {view === 'home' && <Home setView={goTo} openSandbox={openSandbox} user={user} />}
+    <Header dark={dark} setDark={setDark} menu={menu} setMenu={setMenu} setView={goTo} onOpenPlayground={openPlaygroundGames} role={role} user={user} onLogout={logout} adminToken={adminToken} onAdminLogout={adminLogout} />
+    {view === 'home' && <Home setView={goTo} openSandbox={() => openCircuitStudio()} user={user} />}
     {view === 'learn' && <Learn openProblem={openProblem} />}
-    {view === 'educate' && <InteractiveLearn onComplete={() => goTo('builder')} />}
-    {view === 'lab3d' && <QuantumLab3D onOpenBuilder={openSandbox} />}
-    {view === 'algorithms' && <Algorithms openBuilder={openBuilderWithCircuit} />}
+    {view === 'educate' && <InteractiveLearn onComplete={() => openCircuitStudio()} />}
+    {view === 'lab3d' && <QuantumLab3D onOpenBuilder={() => openCircuitStudio()} />}
+    {view === 'algorithms' && <Algorithms openBuilder={(c) => openCircuitStudio(c)} />}
     {view === 'dashboard' && <Dashboard setView={goTo} user={user} openProblem={openProblem} />}
     {view === 'courses' && <Courses openProblem={openProblem} />}
-    {view === 'builder' && <Builder circuit={circuit} setCircuit={setCircuit} problemId={builderProblemId} isLoggedIn={!!user} onSolved={refreshStats} />}
+    {view === 'builder' && <Builder circuit={circuit} setCircuit={setCircuit} problemId={builderProblemId} isLoggedIn={!!user} onSolved={refreshStats} mode={builderMode} onModeChange={setBuilderMode} />}
     {view === 'admin' && (role === 'admin' || !!adminToken) && <Admin setView={goTo} />}
     {(view === 'login' || view === 'signup') && <Auth mode={view} setView={goTo} setAdminToken={setAdminToken} />}
     {assistant && <Assistant circuit={circuit} setCircuit={setCircuit} close={() => setAssistant(false)} />}
@@ -90,9 +98,9 @@ export default function Page() {
   </div>
 }
 
-function Header({ dark, setDark, menu, setMenu, setView, role, user, onLogout, adminToken, onAdminLogout }: any) {
+function Header({ dark, setDark, menu, setMenu, setView, onOpenPlayground, role, user, onLogout, adminToken, onAdminLogout }: any) {
   const streak = user?.streak ?? 0
-  return <header className="header"><button className="brand" onClick={() => setView('home')}><span className="brand-mark">◈</span><span>Qubit<span>Lab</span></span></button><nav className={menu ? 'nav open' : 'nav'}><button onClick={() => setView('educate')}>Educate</button><button onClick={() => setView('lab3d')}>3D Lab</button><button onClick={() => setView('builder')}>Playground</button><button onClick={() => setView('algorithms')}>Algorithms</button><button onClick={() => setView('learn')}>Problems</button><button onClick={() => setView('courses')}>Courses</button></nav><div className="header-actions">{user && streak > 0 && <div className="streak-badge" title={`${streak}-day streak`}><Flame size={14} className="streak-flame" /><span>{streak}</span></div>}<button className="icon-btn" onClick={() => setDark(!dark)} aria-label="Toggle theme">{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>{user ? <><button className="text-btn" onClick={() => setView('dashboard')}>{user.name}</button><button className="pill-btn small" onClick={onLogout}>Log out</button></> : <><button className="text-btn" onClick={() => setView('login')}>Log in</button><button className="pill-btn small" onClick={() => setView('signup')}>Sign up</button></>}{adminToken && !user && <button className="outline-btn small" onClick={onAdminLogout} style={{fontSize:11}}>Admin Logout</button>}<button className="menu-btn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X/> : <Menu/>}</button></div></header>
+  return <header className="header"><button className="brand" onClick={() => setView('home')}><span className="brand-mark">◈</span><span>Qubit<span>Lab</span></span></button><nav className={menu ? 'nav open' : 'nav'}><button onClick={() => setView('educate')}>Educate</button><button onClick={() => setView('lab3d')}>3D Lab</button><button onClick={() => onOpenPlayground ? onOpenPlayground() : setView('builder')}>Playground</button><button onClick={() => setView('algorithms')}>Algorithms</button><button onClick={() => setView('learn')}>Problems</button><button onClick={() => setView('courses')}>Courses</button></nav><div className="header-actions">{user && streak > 0 && <div className="streak-badge" title={`${streak}-day streak`}><Flame size={14} className="streak-flame" /><span>{streak}</span></div>}<button className="icon-btn" onClick={() => setDark(!dark)} aria-label="Toggle theme">{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>{user ? <><button className="text-btn" onClick={() => setView('dashboard')}>{user.name}</button><button className="pill-btn small" onClick={onLogout}>Log out</button></> : <><button className="text-btn" onClick={() => setView('login')}>Log in</button><button className="pill-btn small" onClick={() => setView('signup')}>Sign up</button></>}{adminToken && !user && <button className="outline-btn small" onClick={onAdminLogout} style={{fontSize:11}}>Admin Logout</button>}<button className="menu-btn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X/> : <Menu/>}</button></div></header>
 }
 
 function Home({ setView, openSandbox, user }: any) {
