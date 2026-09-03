@@ -43,9 +43,10 @@ import QuantumShield3DClient from '@/components/games/QuantumShield3DClient'
 interface QuantumGamesArenaProps {
   onAwardXp?: (xp: number) => void
   onOpenBuilder?: (c: Circuit) => void
+  onOpenStudio?: () => void
 }
 
-export default function QuantumGamesArena({ onAwardXp, onOpenBuilder }: QuantumGamesArenaProps) {
+export default function QuantumGamesArena({ onAwardXp, onOpenBuilder, onOpenStudio }: QuantumGamesArenaProps) {
   const [progress, setProgress] = useState<GamesProgressState>({ totalXp: 0, gameProgress: {} })
   const [activeGameId, setActiveGameId] = useState<string | null>(null)
   const [activeLevelNumber, setActiveLevelNumber] = useState<number>(1)
@@ -360,6 +361,15 @@ export default function QuantumGamesArena({ onAwardXp, onOpenBuilder }: QuantumG
               <span className="arena-badge orange">
                 <Flame size={13} /> {overallStats.totalXp} TOTAL GAMES XP
               </span>
+              {onOpenStudio && (
+                <button
+                  className="outline-btn small"
+                  onClick={onOpenStudio}
+                  style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Zap size={13} /> Open Circuit Studio →
+                </button>
+              )}
             </div>
             <h1>
               Quantum <em>Games Arena</em>
@@ -482,6 +492,16 @@ export default function QuantumGamesArena({ onAwardXp, onOpenBuilder }: QuantumG
         <div className="game-stars-tally">
           <span>⭐ {gameStats.stars} / {gameStats.maxStars} Stars</span>
           <span className="xp-tally">+{gameStats.xp} XP</span>
+          {onOpenStudio && (
+            <button
+              className="outline-btn tiny"
+              onClick={onOpenStudio}
+              title="Open freeform Circuit Studio"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              <Zap size={11} /> Circuit Studio
+            </button>
+          )}
         </div>
       </div>
 

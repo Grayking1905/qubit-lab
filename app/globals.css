@@ -557,6 +557,11 @@
    Playground Mode Switcher & Quantum Games Arena
    ========================================================================== */
 
+.studio-top-strip{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,#1c1813,#12100e);border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin-bottom:20px;gap:12px;flex-wrap:wrap}
+.studio-pill-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:ui-monospace,monospace;font-weight:700;letter-spacing:1px;color:var(--orange)}
+.studio-zap{color:var(--orange)}
+.games-switch-cta{background:linear-gradient(90deg,var(--orange),var(--orange2));color:#11100e;font-weight:700}
+
 .playground-mode-nav{display:flex;gap:10px;margin-bottom:24px;border-bottom:1px solid var(--line);padding-bottom:12px;overflow-x:auto}
 .playground-nav-tab{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s}
 .playground-nav-tab:hover{border-color:var(--orange);color:var(--text);background:var(--panel2)}

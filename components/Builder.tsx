@@ -76,19 +76,31 @@ function DropCell({ q, step, symbol, pending, onClick }: { q: number; step: numb
 }
 
 export default function Builder({
-  circuit, setCircuit, problemId, isLoggedIn, onSolved,
+  circuit, setCircuit, problemId, isLoggedIn, onSolved, mode = 'studio', onModeChange,
 }: {
   circuit: Circuit
   setCircuit: (c: Circuit) => void
   problemId: string | null
   isLoggedIn: boolean
   onSolved?: () => void
+  mode?: 'studio' | 'games'
+  onModeChange?: (mode: 'studio' | 'games') => void
 }) {
   const [selected, setSelected] = useState<GateType>('H')
   const [pending, setPending] = useState<Pending | null>(null)
   const [selectedQubit, setSelectedQubit] = useState(0)
   const [dragGate, setDragGate] = useState<GateType | null>(null)
-  const [playgroundMode, setPlaygroundMode] = useState<'builder' | 'games'>('builder')
+  const [currentMode, setCurrentMode] = useState<'studio' | 'games'>(mode)
+
+  useEffect(() => {
+    if (mode) setCurrentMode(mode)
+  }, [mode])
+
+  const switchMode = (newMode: 'studio' | 'games') => {
+    setCurrentMode(newMode)
+    onModeChange?.(newMode)
+    playPopDown()
+  }
 
   const [problem, setProblem] = useState<ProblemDetail | null>(null)
   const [problemError, setProblemError] = useState('')
@@ -253,28 +265,45 @@ export default function Builder({
 
   const displayResult = submitResult?.yourResult ?? simResult
 
-  // If accessed directly as Playground (no problemId), render Quantum Games Arena
-  if (!problemId) {
+  // If in games mode and no problem is being solved, render Quantum Games Arena
+  if (currentMode === 'games' && !problemId) {
     return (
       <main className="builder-page games-arena-mode">
         <QuantumGamesArena
           onAwardXp={handleAwardXp}
           onOpenBuilder={c => {
             setCircuit(c)
+            switchMode('studio')
           }}
+          onOpenStudio={() => switchMode('studio')}
         />
       </main>
     )
   }
 
-  // Otherwise, render curriculum problem solver mode
+  // Otherwise, render Circuit Studio (or curriculum problem solver mode)
   return (
     <main className="builder-page">
+      {!problemId && (
+        <div className="studio-top-strip">
+          <div className="studio-pill-badge">
+            <Zap size={13} className="studio-zap" />
+            <span>CIRCUIT STUDIO</span>
+          </div>
+          <button
+            className="outline-btn tiny games-switch-cta"
+            onClick={() => switchMode('games')}
+          >
+            <Gamepad2 size={13} /> Switch to Quantum Games Arena (48 Levels) →
+          </button>
+        </div>
+      )}
+
       <div className="builder-head">
         <div>
-          <p className="eyebrow">PROBLEM SOLVER</p>
-          <h1>{problem ? problem.title : 'Loading problem…'}</h1>
-          <p>{problem ? problem.description : 'Construct the quantum circuit to satisfy the problem requirements.'}</p>
+          <p className="eyebrow">{problemId ? 'PROBLEM SOLVER' : 'QUANTUM CIRCUIT STUDIO'}</p>
+          <h1>{problem ? problem.title : 'Build. Run. Visualize.'}</h1>
+          <p>{problem ? problem.description : 'Drag gates onto the circuit grid — hear them snap into place — then run to see quantum states evolve.'}</p>
           {problemError && <ErrorBox message={problemError} />}
           {problem && problem.hints.length > 0 && (
             <details style={{ marginTop: 10 }}>
