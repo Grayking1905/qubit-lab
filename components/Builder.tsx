@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Award, Minus, Play, Plus, RotateCcw } from 'lucide-react'
+import { Award, Gamepad2, Minus, Play, Plus, RotateCcw, Zap } from 'lucide-react'
 import {
   DndContext,
   DragOverlay,
@@ -15,12 +15,14 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import {
-  ApiError, getProblem, simulate, submitProblem,
+  ApiError, getProblem, getStoredUser, simulate, submitProblem, updateStoredUser,
   type Circuit, type GateOp, type GateType, type ProblemDetail, type SimulateResult, type SubmitResponse,
 } from '@/lib/api'
+import { useSessionStore } from '@/lib/store'
 import { playPopUp, playPopDown, playSuccess, playError } from '@/lib/sounds'
 import { ErrorBox } from '@/components/shared'
 import StateVisualizer from '@/components/StateVisualizer'
+import QuantumGamesArena from '@/components/QuantumGamesArena'
 
 const STEPS = 8
 const GATES: { type: GateType; label: string; hint: string }[] = [
@@ -86,6 +88,7 @@ export default function Builder({
   const [pending, setPending] = useState<Pending | null>(null)
   const [selectedQubit, setSelectedQubit] = useState(0)
   const [dragGate, setDragGate] = useState<GateType | null>(null)
+  const [playgroundMode, setPlaygroundMode] = useState<'builder' | 'games'>('builder')
 
   const [problem, setProblem] = useState<ProblemDetail | null>(null)
   const [problemError, setProblemError] = useState('')
@@ -94,6 +97,17 @@ export default function Builder({
   const [runError, setRunError] = useState('')
   const [simResult, setSimResult] = useState<SimulateResult | null>(null)
   const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null)
+
+  const handleAwardXp = (xp: number) => {
+    const current = getStoredUser()
+    if (current) {
+      const newXp = (current.xp ?? 0) + xp
+      const newLevel = Math.floor(newXp / 100) + 1
+      updateStoredUser({ xp: newXp, level: newLevel })
+      useSessionStore.getState().hydrate()
+    }
+    onSolved?.()
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -239,27 +253,51 @@ export default function Builder({
 
   const displayResult = submitResult?.yourResult ?? simResult
 
-  return <main className="builder-page">
-    <div className="builder-head">
-      <div>
-        <p className="eyebrow">{problemId ? 'PROBLEM' : 'QUANTUM PLAYGROUND'}</p>
-        <h1>{problem ? problem.title : problemId ? 'Loading…' : 'Build. Run. Visualize.'}</h1>
-        <p>{problem ? problem.description : 'Drag gates onto the circuit grid — hear them snap into place — then run to see quantum states evolve.'}</p>
-        {problemError && <ErrorBox message={problemError} />}
-        {problem && problem.hints.length > 0 && <details style={{ marginTop: 10 }}>
-          <summary className="link-btn" style={{ display: 'inline-flex', cursor: 'pointer' }}>Show hints</summary>
-          <ul className="muted" style={{ fontSize: 12, lineHeight: 1.7, marginTop: 8 }}>
-            {problem.hints.map((h, i) => <li key={i}>{h}</li>)}
-          </ul>
-        </details>}
+  // If accessed directly as Playground (no problemId), render Quantum Games Arena
+  if (!problemId) {
+    return (
+      <main className="builder-page games-arena-mode">
+        <QuantumGamesArena
+          onAwardXp={handleAwardXp}
+          onOpenBuilder={c => {
+            setCircuit(c)
+          }}
+        />
+      </main>
+    )
+  }
+
+  // Otherwise, render curriculum problem solver mode
+  return (
+    <main className="builder-page">
+      <div className="builder-head">
+        <div>
+          <p className="eyebrow">PROBLEM SOLVER</p>
+          <h1>{problem ? problem.title : 'Loading problem…'}</h1>
+          <p>{problem ? problem.description : 'Construct the quantum circuit to satisfy the problem requirements.'}</p>
+          {problemError && <ErrorBox message={problemError} />}
+          {problem && problem.hints.length > 0 && (
+            <details style={{ marginTop: 10 }}>
+              <summary className="link-btn" style={{ display: 'inline-flex', cursor: 'pointer' }}>
+                Show hints
+              </summary>
+              <ul className="muted" style={{ fontSize: 12, lineHeight: 1.7, marginTop: 8 }}>
+                {problem.hints.map((h, i) => (
+                  <li key={i}>{h}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+        <div className="builder-actions">
+          <button className="outline-btn" onClick={clear}>
+            <RotateCcw size={15} /> Clear
+          </button>
+          <motion.button className="pill-btn" onClick={run} disabled={running} whileTap={{ scale: 0.96 }}>
+            {running ? 'Running…' : 'Submit answer'} <Play size={14} />
+          </motion.button>
+        </div>
       </div>
-      <div className="builder-actions">
-        <button className="outline-btn" onClick={clear}><RotateCcw size={15} /> Clear</button>
-        <motion.button className="pill-btn" onClick={run} disabled={running} whileTap={{ scale: 0.96 }}>
-          {running ? 'Running…' : problemId ? 'Submit answer' : 'Run circuit'} <Play size={14} />
-        </motion.button>
-      </div>
-    </div>
 
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="builder-layout builder-layout-viz">
@@ -353,6 +391,7 @@ export default function Builder({
       <ProbabilityPanel result={submitResult.expectedResult} label="Expected result" />
     )}
   </main>
+  )
 }
 
 function ProbabilityPanel({ result, label }: { result: SimulateResult; label: string }) {
