@@ -32,6 +32,7 @@
 - [x] Admin dashboard for user metrics and AI question review (`components/Admin.tsx`, `backend/app/routers/admin.py`).
 - [x] Complete documentation & instant-context files: `AGENTS.md`, `AGENT.md`, `CLAUDE.md`, `.agents/memory.md`.
 - [x] Custom project agent skills in `.agents/skills/`.
+- [x] Quantum Algorithms Laboratory expansion: 10+ canonical algorithms (Superdense Coding, Bernstein-Vazirani, GHZ, 3-Qubit Error Correction, Half-Adder, etc.), interactive step scrubber with auto-play, output physical interpretation cards, and custom 3D Three.js Quantum Stage (`Algorithm3DVisualizer`).
 
 ### ⏳ Upcoming Roadmap & Enhancements
 - [ ] IBM Quantum hardware cloud execution connector.

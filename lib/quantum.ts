@@ -814,22 +814,219 @@ export const LESSONS = [
   },
 ] as const
 
-export const ALGORITHMS = [
+export type AlgorithmCategory = 'All' | 'Entanglement' | 'Search & Oracles' | 'Communication' | 'Error Correction' | 'Arithmetic'
+
+export interface StepExplanation {
+  title: string
+  description: string
+  activeGates: string[]
+  formula?: string
+}
+
+export interface AlgorithmItem {
+  id: string
+  name: string
+  category: 'Entanglement' | 'Search & Oracles' | 'Communication' | 'Error Correction' | 'Arithmetic'
+  description: string
+  overview: string
+  advantage: string
+  outputExplanation: string
+  qubits: number
+  gates: Array<{
+    type: 'H' | 'X' | 'Y' | 'Z' | 'CNOT' | 'TOFFOLI' | 'MEASURE'
+    qubit: number
+    target?: number
+    controls?: number[]
+    step: number
+  }>
+  expected?: Record<string, number> | null
+  stepDescriptions: Record<number, StepExplanation>
+}
+
+export const ALGORITHMS: AlgorithmItem[] = [
   {
     id: 'bell',
-    name: 'Bell State',
+    name: 'Bell State (|Φ⁺⟩)',
+    category: 'Entanglement',
     description: 'Create maximal entanglement between two qubits',
+    overview: 'The Bell state |Φ⁺⟩ = (|00⟩ + |11⟩)/√2 represents the purest form of quantum entanglement. Two separate qubits become inextricably linked: measuring either qubit instantly collapses the other to the exact same value, regardless of the physical distance separating them. This non-local correlation forms the cornerstone of quantum teleportation, superdense coding, and quantum key distribution (E91).',
+    advantage: 'Demonstrates quantum non-locality and violations of Bell\'s inequality (CHSH > 2). Impossible in classical physics without hidden local communication.',
+    outputExplanation: 'Measuring both qubits yields either |00⟩ with 50% probability or |11⟩ with 50% probability. The outcomes |01⟩ and |10⟩ are strictly forbidden (0% probability). The qubits exhibit perfect correlation.',
     qubits: 2,
     gates: [
       { type: 'H', qubit: 0, step: 0 },
       { type: 'CNOT', qubit: 0, target: 1, step: 1 },
     ],
     expected: { '00': 0.5, '11': 0.5 },
+    stepDescriptions: {
+      0: {
+        title: 'Superposition Creation',
+        description: 'A Hadamard gate on q0 transforms the ground state |0⟩ into equal superposition (|0⟩ + |1⟩)/√2. Qubit q1 remains in ground state |0⟩.',
+        activeGates: ['H on q0'],
+        formula: '(|00⟩ + |10⟩)/√2',
+      },
+      1: {
+        title: 'Entanglement via CNOT',
+        description: 'A CNOT gate with control q0 and target q1 flips q1 whenever q0 is |1⟩. This entangles the two qubits into the Bell state |Φ⁺⟩.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: '(|00⟩ + |11⟩)/√2',
+      },
+    },
+  },
+  {
+    id: 'superdense',
+    name: 'Superdense Coding',
+    category: 'Communication',
+    description: 'Transmit 2 classical bits by sending only 1 physical qubit',
+    overview: 'Superdense coding demonstrates the power of prior quantum entanglement. Alice and Bob share an entangled Bell pair. By applying local Pauli operations (I, X, Z, or XZ) to only HER single qubit, Alice can encode 2 classical bits (00, 01, 10, or 11). She then sends her 1 qubit to Bob, who measures the joint Bell state and recovers both classical bits with 100% fidelity!',
+    advantage: 'Doubles the classical information capacity of a quantum communication channel (Holevo bound saturation). 1 transmitted qubit conveys 2 classical bits.',
+    outputExplanation: 'In this demonstration, Alice encodes the classical message "11" using Z and X gates. Bob measures the qubits and recovers state |11⟩ with 100% deterministic certainty.',
+    qubits: 2,
+    gates: [
+      { type: 'H', qubit: 0, step: 0 },
+      { type: 'CNOT', qubit: 0, target: 1, step: 1 },
+      { type: 'Z', qubit: 0, step: 2 },
+      { type: 'X', qubit: 0, step: 3 },
+      { type: 'CNOT', qubit: 0, target: 1, step: 4 },
+      { type: 'H', qubit: 0, step: 5 },
+    ],
+    expected: { '11': 1.0 },
+    stepDescriptions: {
+      0: {
+        title: 'Bell Pair: Hadamard',
+        description: 'Prepare qubit q0 in equal superposition.',
+        activeGates: ['H on q0'],
+        formula: '(|00⟩ + |10⟩)/√2',
+      },
+      1: {
+        title: 'Bell Pair: Entanglement',
+        description: 'CNOT creates shared Bell state |Φ⁺⟩ = (|00⟩ + |11⟩)/√2. Qubit q0 stays with Alice; q1 is sent to Bob.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: '(|00⟩ + |11⟩)/√2',
+      },
+      2: {
+        title: 'Alice Encodes Bit 1 (Phase Flip)',
+        description: 'Alice applies a Z gate to q0, mapping |Φ⁺⟩ to |Φ⁻⟩ = (|00⟩ − |11⟩)/√2.',
+        activeGates: ['Z on q0'],
+        formula: '(|00⟩ − |11⟩)/√2',
+      },
+      3: {
+        title: 'Alice Encodes Bit 2 (Bit Flip)',
+        description: 'Alice applies an X gate to q0, mapping |Φ⁻⟩ to |Ψ⁻⟩ = (|10⟩ − |01⟩)/√2. Alice transmits q0 to Bob.',
+        activeGates: ['X on q0'],
+        formula: '(|10⟩ − |01⟩)/√2',
+      },
+      4: {
+        title: 'Bob Decodes: CNOT',
+        description: 'Bob receives q0 and performs a CNOT between q0 and q1 to disentangle the Bell state.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: '(|11⟩ − |01⟩)/√2',
+      },
+      5: {
+        title: 'Bob Decodes: Hadamard',
+        description: 'Bob applies Hadamard on q0 to rotate out of superposition into the computational basis.',
+        activeGates: ['H on q0'],
+        formula: '−|11⟩ (Deterministic outcome 11)',
+      },
+    },
+  },
+  {
+    id: 'bernstein',
+    name: 'Bernstein-Vazirani',
+    category: 'Search & Oracles',
+    description: 'Find a hidden secret bitstring s=11 in a single oracle query',
+    overview: 'The Bernstein-Vazirani algorithm is an oracle problem where an unknown function computes the inner product f(x) = s · x (mod 2) for a hidden secret string s. While any classical deterministic or randomized algorithm requires n separate queries to learn an n-bit string, the quantum algorithm recovers the entire string s in exactly ONE query using quantum phase kickback!',
+    advantage: 'Solves the hidden bitstring problem in O(1) quantum oracle queries versus classical O(n) queries, demonstrating deterministic quantum speedup.',
+    outputExplanation: 'The input register qubits (q0 and q1) collapse to the secret string s = "11" with 100% probability. The ancilla qubit q2 remains in superposition |−⟩, so both |110⟩ and |111⟩ indicate secret s = 11.',
+    qubits: 3,
+    gates: [
+      { type: 'X', qubit: 2, step: 0 },
+      { type: 'H', qubit: 0, step: 1 },
+      { type: 'H', qubit: 1, step: 1 },
+      { type: 'H', qubit: 2, step: 1 },
+      { type: 'CNOT', qubit: 0, target: 2, step: 2 },
+      { type: 'CNOT', qubit: 1, target: 2, step: 3 },
+      { type: 'H', qubit: 0, step: 4 },
+      { type: 'H', qubit: 1, step: 4 },
+    ],
+    expected: { '110': 0.5, '111': 0.5 },
+    stepDescriptions: {
+      0: {
+        title: 'Ancilla Initialization',
+        description: 'Flip ancilla qubit q2 to |1⟩ using an X gate to prepare for phase kickback.',
+        activeGates: ['X on q2'],
+        formula: '|001⟩',
+      },
+      1: {
+        title: 'Parallel Superposition',
+        description: 'Apply Hadamard to all three qubits. Inputs enter |+⟩|+⟩; ancilla enters |−⟩ = (|0⟩ − |1⟩)/√2.',
+        activeGates: ['H on q0', 'H on q1', 'H on q2'],
+        formula: '|+⟩ ⊗ |+⟩ ⊗ |−⟩',
+      },
+      2: {
+        title: 'Oracle Query: Bit s₀ = 1',
+        description: 'CNOT from q0 into ancilla q2 kicks a relative phase (−1) back onto |1⟩ of q0.',
+        activeGates: ['CNOT(q0 → q2)'],
+        formula: '|−⟩ ⊗ |+⟩ ⊗ |−⟩',
+      },
+      3: {
+        title: 'Oracle Query: Bit s₁ = 1',
+        description: 'CNOT from q1 into ancilla q2 kicks a relative phase (−1) back onto |1⟩ of q1.',
+        activeGates: ['CNOT(q1 → q2)'],
+        formula: '|−⟩ ⊗ |−⟩ ⊗ |−⟩',
+      },
+      4: {
+        title: 'Interference & Recovery',
+        description: 'Hadamard gates on q0 and q1 transform the phase-encoded state |−⟩|−⟩ directly into basis state |11⟩.',
+        activeGates: ['H on q0', 'H on q1'],
+        formula: '|1⟩ ⊗ |1⟩ ⊗ |−⟩ = (|110⟩ − |111⟩)/√2',
+      },
+    },
+  },
+  {
+    id: 'ghz',
+    name: 'GHZ State (3-Qubit Entanglement)',
+    category: 'Entanglement',
+    description: 'Create tripartite macroscopic entanglement: (|000⟩ + |111⟩)/√2',
+    overview: 'The Greenberger-Horne-Zeilinger (GHZ) state is an extreme quantum superposition of 3 or more qubits where all qubits simultaneously exist in |000⟩ and |111⟩. Unlike 2-qubit Bell states, GHZ states refute Einstein-Podolsky-Rosen (EPR) local hidden variable theories in a single non-statistical measurement, and form the backbone of quantum secret sharing and fault-tolerant stabilizer codes.',
+    advantage: 'Enables non-statistical tests of quantum mechanics without Bell inequalities. Essential for multi-party quantum cryptography.',
+    outputExplanation: 'Measurement reveals either |000⟩ with 50% probability or |111⟩ with 50% probability. The intermediate states |001⟩, |010⟩, |011⟩, |100⟩, |101⟩, |110⟩ have 0% probability.',
+    qubits: 3,
+    gates: [
+      { type: 'H', qubit: 0, step: 0 },
+      { type: 'CNOT', qubit: 0, target: 1, step: 1 },
+      { type: 'CNOT', qubit: 1, target: 2, step: 2 },
+    ],
+    expected: { '000': 0.5, '111': 0.5 },
+    stepDescriptions: {
+      0: {
+        title: 'Superposition Injection',
+        description: 'Hadamard on q0 creates an equal superposition (|0⟩ + |1⟩)/√2 on the first qubit.',
+        activeGates: ['H on q0'],
+        formula: '(|000⟩ + |100⟩)/√2',
+      },
+      1: {
+        title: 'First Stage Entanglement',
+        description: 'CNOT from q0 to q1 entangles q0 and q1 into a Bell pair.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: '(|000⟩ + |110⟩)/√2',
+      },
+      2: {
+        title: 'Tripartite Cascade',
+        description: 'CNOT from q1 to q2 chains entanglement across all three qubits, completing the GHZ state.',
+        activeGates: ['CNOT(q1 → q2)'],
+        formula: '(|000⟩ + |111⟩)/√2',
+      },
+    },
   },
   {
     id: 'grover-2',
-    name: "Grover's Search (2-qubit)",
-    description: 'Find |11⟩ with quadratic speedup',
+    name: "Grover's Search (2-Qubit)",
+    category: 'Search & Oracles',
+    description: 'Find marked state |11⟩ with quadratic amplitude amplification',
+    overview: 'Grover\'s algorithm searches an unsorted database of N = 2ⁿ items in O(√N) queries instead of classical O(N) linear search. It operates via two alternating steps: (1) an Oracle that flips the phase of the target state, and (2) a Diffusion Operator (inversion about the average) that constructively amplifies the target state\'s probability amplitude while suppressing all non-target states.',
+    advantage: 'Quadratic speedup: O(√N) vs classical O(N). For 2 qubits (N=4), Grover finds the target in exactly 1 iteration with 100% probability.',
+    outputExplanation: 'Constructive interference boosts the marked state |11⟩ amplitude to 1.0 (100% probability), while destructive interference drives the amplitudes of |00⟩, |01⟩, and |10⟩ to 0%.',
     qubits: 2,
     gates: [
       { type: 'H', qubit: 0, step: 0 },
@@ -848,24 +1045,104 @@ export const ALGORITHMS = [
       { type: 'H', qubit: 1, step: 8 },
     ],
     expected: { '11': 1.0 },
+    stepDescriptions: {
+      0: {
+        title: 'Uniform Superposition',
+        description: 'Hadamard gates place both qubits into an equal superposition across all 4 basis states (|00⟩, |01⟩, |10⟩, |11⟩).',
+        activeGates: ['H on q0', 'H on q1'],
+        formula: '1/2 (|00⟩ + |01⟩ + |10⟩ + |11⟩)',
+      },
+      1: {
+        title: 'Oracle: Phase Inversion',
+        description: 'The oracle marks target |11⟩ by inverting its sign to negative via controlled-Z decomposition.',
+        activeGates: ['Z on q1', 'CNOT(q0 → q1)', 'Z on q1'],
+        formula: '1/2 (|00⟩ + |01⟩ + |10⟩ − |11⟩)',
+      },
+      2: {
+        title: 'Diffusion: Basis Change',
+        description: 'Apply Hadamard gates to both qubits to prepare for inversion about the mean.',
+        activeGates: ['H on q0', 'H on q1'],
+        formula: 'Hadamard transform of marked state',
+      },
+      3: {
+        title: 'Diffusion: Inversion About Mean',
+        description: 'Phase reflection around the |00⟩ state inverts amplitudes about their average.',
+        activeGates: ['Z on q0', 'Z on q1', 'CNOT', 'Z on q0', 'Z on q1'],
+        formula: 'Reflection around average amplitude',
+      },
+      4: {
+        title: 'Final Interference',
+        description: 'Final Hadamard transform rotates the amplified state directly onto computational basis state |11⟩.',
+        activeGates: ['H on q0', 'H on q1'],
+        formula: '|11⟩ (100% Probability)',
+      },
+    },
   },
   {
     id: 'teleport',
     name: 'Quantum Teleportation',
-    description: 'Transfer a qubit state using entanglement',
+    category: 'Communication',
+    description: 'Transfer an unknown quantum state using entanglement and classical feedforward',
+    overview: 'Quantum teleportation transmits an unknown qubit state |ψ⟩ from Alice to Bob without physically transporting the particle itself or violating the No-Cloning Theorem. Alice and Bob share a Bell pair. Alice performs a joint Bell-state measurement on |ψ⟩ and her half of the Bell pair, then transmits two classical bits to Bob, who performs unitary corrections (X and Z) to reconstitute |ψ⟩ exactly.',
+    advantage: 'Enables quantum state transfer across arbitrary distances without measuring the state itself. Fundamental to the quantum internet and distributed quantum computing.',
+    outputExplanation: 'Alice\'s qubits (q0, q1) are measured to extract 2 classical bits. Bob\'s qubit (q2) reconstructs the original quantum state with 100% fidelity.',
     qubits: 3,
     gates: [
       { type: 'H', qubit: 1, step: 0 },
       { type: 'CNOT', qubit: 1, target: 2, step: 1 },
       { type: 'CNOT', qubit: 0, target: 1, step: 2 },
       { type: 'H', qubit: 0, step: 3 },
+      { type: 'CNOT', qubit: 1, target: 2, step: 4 },
+      { type: 'CNOT', qubit: 0, target: 2, step: 5 },
     ],
     expected: null,
+    stepDescriptions: {
+      0: {
+        title: 'Bell Resource Creation',
+        description: 'Hadamard on q1 begins Bell pair preparation between Alice (q1) and Bob (q2).',
+        activeGates: ['H on q1'],
+        formula: '|0⟩ ⊗ (|+⟩) ⊗ |0⟩',
+      },
+      1: {
+        title: 'Entanglement Distribution',
+        description: 'CNOT between q1 and q2 creates a shared EPR Bell pair (|00⟩ + |11⟩)/√2.',
+        activeGates: ['CNOT(q1 → q2)'],
+        formula: '|ψ⟩_q0 ⊗ (|00⟩ + |11⟩)/√2',
+      },
+      2: {
+        title: 'Alice Bell Measurement: CNOT',
+        description: 'Alice interacts the unknown state q0 with her half of the Bell pair q1 using a CNOT.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: 'Bell interaction on Alice\'s qubits',
+      },
+      3: {
+        title: 'Alice Bell Measurement: Hadamard',
+        description: 'Alice rotates q0 into the X basis to complete the joint Bell-basis projection.',
+        activeGates: ['H on q0'],
+        formula: 'State mapped into 4 Bell projections',
+      },
+      4: {
+        title: 'Bob Feedforward Correction (Bit)',
+        description: 'Bob uses measurement of q1 to conditionally apply an X gate correction.',
+        activeGates: ['CNOT(q1 → q2)'],
+        formula: 'Conditional Pauli-X correction on q2',
+      },
+      5: {
+        title: 'Bob Feedforward Correction (Phase)',
+        description: 'Bob uses measurement of q0 to conditionally apply phase correction, restoring the exact state |ψ⟩ on q2.',
+        activeGates: ['CNOT(q0 → q2)'],
+        formula: 'Final state reconstructed on q2',
+      },
+    },
   },
   {
     id: 'deutsch',
-    name: 'Deutsch-Jozsa',
-    description: 'Determine if a function is constant or balanced',
+    name: 'Deutsch-Jozsa Algorithm',
+    category: 'Search & Oracles',
+    description: 'Determine if a boolean function is constant or balanced in 1 evaluation',
+    overview: 'The Deutsch-Jozsa algorithm solves whether an oracle function f(x) is constant (outputs the same bit for all inputs) or balanced (outputs 0 for half and 1 for the other half). While a classical algorithm requires 2ⁿ⁻¹ + 1 queries in the worst case to be certain, Deutsch-Jozsa answers with 100% deterministic certainty in a single quantum query.',
+    advantage: 'Exponential separation in query complexity: O(1) quantum vs O(2ⁿ⁻¹) classical deterministic queries.',
+    outputExplanation: 'Since the oracle used here is balanced f(x)=x, constructive interference concentrates the input qubit q0 into state |1⟩. A constant function would measure |0⟩. Thus q0=1 proves the function is balanced with 100% certainty.',
     qubits: 2,
     gates: [
       { type: 'X', qubit: 1, step: 0 },
@@ -874,6 +1151,133 @@ export const ALGORITHMS = [
       { type: 'CNOT', qubit: 0, target: 1, step: 2 },
       { type: 'H', qubit: 0, step: 3 },
     ],
-    expected: { '00': 1.0 },
+    expected: { '10': 0.5, '11': 0.5 },
+    stepDescriptions: {
+      0: {
+        title: 'Ancilla Setup',
+        description: 'Flip ancilla qubit q1 to |1⟩ with an X gate so that Hadamard puts it into |−⟩.',
+        activeGates: ['X on q1'],
+        formula: '|01⟩',
+      },
+      1: {
+        title: 'Superposition Creation',
+        description: 'Apply Hadamard to both qubits. Input enters |+⟩; ancilla enters |−⟩ for phase kickback.',
+        activeGates: ['H on q0', 'H on q1'],
+        formula: '|+⟩ ⊗ |−⟩',
+      },
+      2: {
+        title: 'Balanced Oracle Query',
+        description: 'CNOT from input q0 into ancilla q1 evaluates f(x)=x, flipping ancilla sign when q0 is |1⟩.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: '|−⟩ ⊗ |−⟩',
+      },
+      3: {
+        title: 'Interference Measurement',
+        description: 'Final Hadamard on q0 maps |−⟩ to |1⟩. Destructive interference eliminates |0⟩, proving the function is balanced.',
+        activeGates: ['H on q0'],
+        formula: '|1⟩ ⊗ |−⟩ = (|10⟩ − |11⟩)/√2',
+      },
+    },
   },
-] as const
+  {
+    id: 'half-adder',
+    name: 'Quantum Half-Adder',
+    category: 'Arithmetic',
+    description: 'Reversible quantum addition computing Sum (XOR) and Carry (AND)',
+    overview: 'All quantum computation must be unitary and reversible (no information loss). Classical logic gates like AND and XOR are irreversible. The Quantum Half-Adder computes the addition of two binary bits A and B reversibly: the Toffoli (CCX) gate computes the Carry bit (A · B), and the CNOT gate computes the Sum bit (A ⊕ B). This forms the core building block of modular exponentiation in Shor\'s factoring algorithm.',
+    advantage: 'Enables coherent, reversible arithmetic on superpositions of numbers with zero Landauer thermodynamic heat dissipation.',
+    outputExplanation: 'With inputs A=1 (q0) and B=1 (q1), the quantum half-adder calculates 1 + 1 = 10₂: Carry = 1 (q2) and Sum = 0 (q1). Output state |101⟩ occurs with 100% deterministic probability.',
+    qubits: 3,
+    gates: [
+      { type: 'X', qubit: 0, step: 0 },
+      { type: 'X', qubit: 1, step: 0 },
+      { type: 'TOFFOLI', qubit: 0, controls: [0, 1], target: 2, step: 1 },
+      { type: 'CNOT', qubit: 0, target: 1, step: 2 },
+    ],
+    expected: { '101': 1.0 },
+    stepDescriptions: {
+      0: {
+        title: 'Input Initialization (1 + 1)',
+        description: 'Apply X gates to q0 and q1 to set both input operands to 1 (A=1, B=1). Carry qubit q2 starts at 0.',
+        activeGates: ['X on q0', 'X on q1'],
+        formula: '|110⟩',
+      },
+      1: {
+        title: 'Carry Calculation: Toffoli Gate',
+        description: 'Toffoli gate (controlled-controlled-NOT) fires only if both q0=1 and q1=1, setting Carry q2 = A · B = 1.',
+        activeGates: ['TOFFOLI(q0, q1 → q2)'],
+        formula: '|111⟩ (Carry computed on q2)',
+      },
+      2: {
+        title: 'Sum Calculation: CNOT Gate',
+        description: 'CNOT gate from q0 to q1 computes the Sum bit A ⊕ B onto q1: 1 ⊕ 1 = 0.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: '|101⟩ (A=1, Sum=0, Carry=1)',
+      },
+    },
+  },
+  {
+    id: 'bit-flip-code',
+    name: '3-Qubit Quantum Error Correction',
+    category: 'Error Correction',
+    description: 'Encode, detect, and correct an arbitrary bit-flip error (X noise)',
+    overview: 'Quantum systems are extremely delicate and susceptible to environmental decoherence. The 3-qubit bit-flip code protects a logical qubit against unwanted X bit-flip errors. It encodes the logical state into 3 physical qubits (|0⟩_L = |000⟩, |1⟩_L = |111⟩). If noise flips one physical qubit mid-circuit, syndrome parity detection followed by a Toffoli majority vote detects and corrects the damaged qubit without measuring or destroying the quantum superposition!',
+    advantage: 'Overcomes the No-Cloning Theorem by entangling rather than copying qubits. Foundational proof that fault-tolerant quantum computing is mathematically possible.',
+    outputExplanation: 'Despite an artificial bit-flip noise error injected on physical qubit q1 (step 3), the syndrome and majority-rule recovery completely reverses the error, returning the system to the correct uncorrupted Bell superposition.',
+    qubits: 3,
+    gates: [
+      { type: 'H', qubit: 0, step: 0 },
+      { type: 'CNOT', qubit: 0, target: 1, step: 1 },
+      { type: 'CNOT', qubit: 0, target: 2, step: 2 },
+      { type: 'X', qubit: 1, step: 3 },
+      { type: 'CNOT', qubit: 0, target: 1, step: 4 },
+      { type: 'CNOT', qubit: 0, target: 2, step: 5 },
+      { type: 'TOFFOLI', qubit: 1, controls: [1, 2], target: 0, step: 6 },
+    ],
+    expected: null,
+    stepDescriptions: {
+      0: {
+        title: 'Logical State Preparation',
+        description: 'Hadamard on q0 creates logical test state (|0⟩ + |1⟩)/√2.',
+        activeGates: ['H on q0'],
+        formula: '(|000⟩ + |100⟩)/√2',
+      },
+      1: {
+        title: 'Encoding Physical Qubit 1',
+        description: 'CNOT entangles logical data q0 into first physical copy q1.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: '(|000⟩ + |110⟩)/√2',
+      },
+      2: {
+        title: 'Encoding Physical Qubit 2',
+        description: 'CNOT entangles logical data q0 into second physical copy q2, forming the repetition code (|000⟩ + |111⟩)/√2.',
+        activeGates: ['CNOT(q0 → q2)'],
+        formula: '(|000⟩ + |111⟩)/√2',
+      },
+      3: {
+        title: 'Simulated Bit-Flip Noise Error',
+        description: 'Environmental noise causes an unwanted bit-flip (Pauli-X) on physical qubit q1. The state is corrupted into (|010⟩ + |101⟩)/√2.',
+        activeGates: ['X on q1 (Error injection)'],
+        formula: '(|010⟩ + |101⟩)/√2 (Corrupted)',
+      },
+      4: {
+        title: 'Syndrome Parity Check 1',
+        description: 'CNOT from q0 to q1 compares parities between physical qubits 0 and 1.',
+        activeGates: ['CNOT(q0 → q1)'],
+        formula: 'Parity syndrome extracted into q1',
+      },
+      5: {
+        title: 'Syndrome Parity Check 2',
+        description: 'CNOT from q0 to q2 compares parities between physical qubits 0 and 2.',
+        activeGates: ['CNOT(q0 → q2)'],
+        formula: 'Parity syndrome extracted into q2',
+      },
+      6: {
+        title: 'Majority Voting Correction',
+        description: 'Toffoli gate detects the syndrome discrepancy and applies an exact correction to recover the uncorrupted state.',
+        activeGates: ['TOFFOLI(q1, q2 → q0)'],
+        formula: 'Error corrected; original state restored!',
+      },
+    },
+  },
+]
