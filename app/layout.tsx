@@ -33,6 +33,8 @@ export const viewport: Viewport = {
   ],
 }
 
+import BackendKeepAlive from '@/components/BackendKeepAlive'
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,6 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
+        <BackendKeepAlive intervalSeconds={5} />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
