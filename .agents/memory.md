@@ -30,7 +30,7 @@
 
 ## Active Architecture & Technology Stack
 - **Frontend**: Next.js 16 (Webpack, App router), React 19, TypeScript, Tailwind CSS, Framer Motion, `@dnd-kit/core`, `@react-three/fiber`, `@react-three/drei`, Three.js.
-- **Backend**: FastAPI 0.115, Python 3.12, Prisma Client Python 0.15.0, PostgreSQL (Neon DB), Qiskit 1.3.1, Qiskit Aer 0.15.1, Groq LLM API (`openai/gpt-oss-120b`).
+- **Backend**: FastAPI 0.115, Python 3.12, Prisma Client Python 0.15.0, PostgreSQL (Neon DB `ep-sweet-pond-b3dor0tx`), Qiskit 1.3.1, Qiskit Aer 0.15.1, Groq LLM API (`openai/gpt-oss-120b`).
 - **Simulators**:
   - Client: Matrix-free statevector engine in `lib/simulator.ts` for instant 60fps UI feedback.
   - Server: `Qiskit Aer` statevector simulation in `backend/app/services/quantum.py`.
