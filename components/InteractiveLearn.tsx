@@ -299,9 +299,19 @@ export default function InteractiveLearn({ onComplete }: { onComplete?: () => vo
               )}
               {step.type === 'video' && 'videoId' in step && (
                 <div className="educate-video">
-                  <div className="educate-video-header">
-                    <YtIcon size={16} />
-                    <span>Watch</span>
+                  <div className="educate-video-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <YtIcon size={16} />
+                      <span>{step.title}</span>
+                    </div>
+                    <a
+                      href={`https://www.youtube.com/watch?v=${step.videoId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 11, color: 'var(--orange)', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                    >
+                      Watch on YouTube ↗
+                    </a>
                   </div>
                   <div className="educate-video-frame">
                     <iframe

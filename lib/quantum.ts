@@ -79,9 +79,9 @@ export const LESSONS = [
       },
       {
         type: 'video' as const,
-        title: 'IBM Research: What Is Quantum Computing?',
-        body: 'IBM scientists explain how quantum computers exploit quantum mechanical phenomena to tackle problems no classical computer can solve efficiently.',
-        videoId: 'EK8Z0mOoSSE',
+        title: 'Quantum Computers Explained — Limits of Human Technology',
+        body: 'A visual exploration by Kurzgesagt on how quantum computers exploit quantum mechanical phenomena (superposition and entanglement) to solve problems intractable for classical machines.',
+        videoId: 'JhHMJCUmq28',
       },
       {
         type: 'read' as const,

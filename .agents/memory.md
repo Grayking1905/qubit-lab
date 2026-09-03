@@ -62,6 +62,8 @@
 - [x] Custom project agent skills in `.agents/skills/`.
 - [x] Neon PostgreSQL database connection, schema migration (`prisma db push`), and seed initialization (`backend/seed_db.py`).
 - [x] Full backend deployment verification & audit: 10/10 automated endpoint tests passed, `render.yaml` build pipeline hardened, `backend/Procfile` & `backend/Dockerfile` created for multi-cloud deployment.
+- [x] Fixed Docker build for Prisma CLI: added `libatomic1`, `nodejs`, and `npm` to `backend/Dockerfile` resolving `libatomic.so.1: cannot open shared object file`.
+- [x] Deployed live to Render: `https://qubit-lab-l24k.onrender.com`. Verified root `/`, `/health`, `/health/keepalive`, Neon DB `/problems`, and Qiskit Aer `/simulate`.
 - [x] Render Keep-Alive 5-second health heartbeat trigger: `backend/app/main.py` self-keepalive background worker (`/health/keepalive`), Next.js `/api/keepalive` & `/api/health` proxy endpoints, and frontend `<BackendKeepAlive intervalSeconds={5} />` mounted in `app/layout.tsx`.
 ### Current State
 - ✅ Next.js 16 + Webpack frontend configured with 3D Bloch Sphere, Circuit Builder, Code Sandbox, Algorithms Library, Interactive Curriculum, and AI Copilot.
