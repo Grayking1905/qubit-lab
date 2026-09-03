@@ -104,7 +104,7 @@ app.include_router(gates.router)
 app.include_router(badges.router)
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {
         "name": "QubitLab API",
@@ -114,7 +114,7 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     """Health check endpoint. Responds immediately to prevent idle timeouts."""
     return {
@@ -125,7 +125,7 @@ async def health():
     }
 
 
-@app.get("/health/keepalive")
+@app.api_route("/health/keepalive", methods=["GET", "HEAD"])
 async def keepalive():
     """Dedicated keep-alive pulse endpoint for 5-second interval heartbeat pings."""
     return {
