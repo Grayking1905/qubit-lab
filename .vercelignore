@@ -1,0 +1,7 @@
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+.agents/
+.claude/
+scratch/
+*.pyc
